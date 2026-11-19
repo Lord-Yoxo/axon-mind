@@ -1,0 +1,13 @@
+{
+  "name": "axon-mind",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Axon Mind Obsidian plugin (sources in src/, main.js is generated).",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2",
+    "three": "0.170.0"
+  }
+}

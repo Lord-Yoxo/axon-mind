@@ -1,0 +1,1404 @@
+/* Axon Mind — style épuré : petits textes, traits fins, panneaux plats */
+
+.workspace-leaf-content[data-type="axon-mind-view"] > .view-content,
+.c3d-view {
+  padding: 0 !important;
+  overflow: hidden;
+  position: relative;
+  background: #050506;
+}
+
+.c3d-root {
+  --c3d-bg: #050506;
+  --c3d-panel: #0b0b0d;
+  --c3d-line: #232327;
+  --c3d-text: #d7d9de;
+  --c3d-dim: #80848c;
+  --c3d-faint: #55585f;
+  --c3d-hi: #ffffff;
+  position: absolute;
+  inset: 0;
+  background: var(--c3d-bg);
+  color: var(--c3d-text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", var(--font-interface, system-ui), "Segoe UI", sans-serif;
+  font-size: 11px;
+  line-height: 1.35;
+  overflow: hidden;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.6s ease;
+  display: flex;
+}
+
+/* La scène 3D occupe la place laissée par le menu, le navigateur et la colonne de droite. */
+.c3d-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.c3d-canvas,
+.c3d-canvas canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  touch-action: none;
+}
+
+.c3d-ui {
+  transition: opacity 0.9s ease;
+}
+.c3d-intro-on .c3d-ui {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Remise à zéro des boutons / champs d'Obsidian */
+.c3d-root button {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.c3d-root button:focus-visible {
+  outline: 1px solid var(--c3d-dim);
+  outline-offset: 1px;
+}
+
+/* ------------------------------------------------ recherche (haut gauche) */
+.c3d-tl {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 5;
+}
+.c3d-root .c3d-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 210px;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid var(--c3d-line);
+  border-radius: 3px;
+  background: var(--c3d-panel);
+  cursor: text;
+}
+.c3d-search-ico {
+  display: flex;
+  color: var(--c3d-dim);
+}
+.c3d-root .c3d-search input {
+  all: unset;
+  flex: 1;
+  min-width: 0;
+  color: var(--c3d-hi);
+  font: inherit;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  height: auto !important;
+}
+.c3d-root .c3d-search input::placeholder {
+  color: var(--c3d-faint);
+}
+.c3d-search-count {
+  color: var(--c3d-hi);
+  font-variant-numeric: tabular-nums;
+}
+.c3d-search-count.is-zero {
+  color: #ff7a7a;
+}
+.c3d-kbd {
+  color: var(--c3d-faint);
+  border: 1px solid var(--c3d-line);
+  border-radius: 2px;
+  padding: 0 4px;
+  font-size: 9.5px;
+}
+.c3d-root .c3d-chip {
+  height: 24px;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--c3d-line);
+  border-radius: 3px;
+  background: var(--c3d-panel);
+  color: var(--c3d-dim);
+}
+.c3d-root .c3d-chip:hover,
+.c3d-root .c3d-chip.is-active {
+  color: var(--c3d-hi);
+  border-color: var(--c3d-dim);
+}
+
+/* Bouton LARP : bien visible, à gauche */
+.c3d-root .c3d-arp {
+  height: 24px;
+  padding: 0 12px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--c3d-hi);
+  border-radius: 3px;
+  background: var(--c3d-hi);
+  color: #000;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.25);
+  transition: box-shadow 0.2s, background 0.2s, color 0.2s;
+}
+.c3d-root .c3d-arp:hover {
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.45);
+}
+.c3d-arp-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #000;
+}
+.c3d-root .c3d-arp.is-on {
+  background: #000;
+  color: var(--c3d-hi);
+}
+.c3d-root .c3d-arp.is-on .c3d-arp-dot {
+  background: #ff3b3b;
+  box-shadow: 0 0 8px #ff3b3b;
+  animation: c3d-pulse 1s ease-in-out infinite;
+}
+@keyframes c3d-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* -------------------------------------------- statistiques (gauche) */
+.c3d-stats {
+  position: absolute;
+  top: 42px;
+  left: 10px;
+  width: 236px;
+  max-height: calc(100% - 120px);
+  overflow-y: auto;
+  padding: 10px 11px;
+  border: 1px solid var(--c3d-line);
+  border-radius: 3px;
+  background: var(--c3d-panel);
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.c3d-stats.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+.c3d-st-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--c3d-dim);
+  margin-bottom: 7px;
+}
+.c3d-st-sub {
+  margin-top: 13px;
+}
+.c3d-st-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+}
+.c3d-st-l {
+  color: var(--c3d-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.c3d-st-v {
+  color: var(--c3d-hi);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.c3d-st-top {
+  margin-bottom: 4px;
+}
+.c3d-st-bar {
+  height: 1px;
+  background: var(--c3d-line);
+  margin-top: 2px;
+}
+.c3d-st-fill {
+  height: 1px;
+  background: var(--c3d-dim);
+}
+.c3d-root .c3d-st-most {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 7px;
+  border: 1px solid var(--c3d-line);
+  border-radius: 3px;
+}
+.c3d-root .c3d-st-most:hover {
+  border-color: var(--c3d-dim);
+}
+.c3d-root button.c3d-st-top {
+  display: block;
+  width: 100%;
+}
+.c3d-root button.c3d-st-top:hover .c3d-st-l,
+.c3d-root .c3d-st-click:hover .c3d-st-l,
+.c3d-root .c3d-st-click:hover .c3d-st-v {
+  color: var(--c3d-hi);
+}
+.c3d-root button.c3d-st-click {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 0;
+}
+.c3d-st-click .c3d-st-v {
+  color: var(--c3d-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--c3d-line);
+}
+
+/* ---------------------------------------------- panneau « Vue » (droite) */
+.c3d-root .c3d-panel-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--c3d-line);
+  border-radius: 3px;
+  background: var(--c3d-panel);
+  color: var(--c3d-dim);
+  z-index: 6;
+}
+.c3d-root .c3d-panel-btn:hover,
+.c3d-root .c3d-panel-btn.is-active {
+  color: var(--c3d-hi);
+}
+.c3d-panel-open .c3d-panel-btn {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+.c3d-vpanel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  width: 232px;
+  overflow-y: auto;
+  padding: 0 12px 10px;
+  border: 1px solid var(--c3d-line);
+  border-radius: 3px;
+  background: var(--c3d-panel);
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease, background 0.6s ease;
+}
+.c3d-vpanel.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+.c3d-vpanel::-webkit-scrollbar {
+  width: 4px;
+}
+.c3d-vpanel::-webkit-scrollbar-thumb {
+  background: var(--c3d-line);
+}
+.c3d-vp-head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0 7px;
+  background: var(--c3d-panel);
+  z-index: 1;
+}
+.c3d-vp-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--c3d-text);
+  position: relative;
+}
+.c3d-vp-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 16px;
+  height: 1px;
+  background: var(--c3d-dim);
+}
+.c3d-root .c3d-vp-x {
+  color: var(--c3d-faint);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.c3d-root .c3d-vp-x:hover {
+  color: var(--c3d-hi);
+}
+.c3d-vp-sec {
+  padding: 10px 0 8px;
+  border-top: 1px solid var(--c3d-line);
+}
+.c3d-vp-sec:first-of-type {
+  border-top: none;
+}
+.c3d-vp-sectitle {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--c3d-dim);
+  margin-bottom: 6px;
+}
+.c3d-vp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 21px;
+}
+.c3d-vp-label {
+  color: var(--c3d-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.c3d-vp-row-slider {
+  flex-wrap: wrap;
+  row-gap: 1px;
+}
+.c3d-vp-row-slider .c3d-range {
+  flex-basis: 100%;
+}
+.c3d-vp-val {
+  color: var(--c3d-dim);
+  font-variant-numeric: tabular-nums;
+}
+.c3d-vp-row.is-dim {
+  opacity: 0.4;
+}
+
+.c3d-root select.c3d-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 108px;
+  height: 20px;
+  padding: 0 18px 0 6px;
+  border: 1px solid var(--c3d-line);
+  border-radius: 2px;
+  background-color: var(--c3d-bg);
+  background-image: linear-gradient(45deg, transparent 50%, var(--c3d-dim) 50%), linear-gradient(135deg, var(--c3d-dim) 50%, transparent 50%);
+  background-position: calc(100% - 9px) 8px, calc(100% - 5px) 8px;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
+  color: var(--c3d-text);
+  font: inherit;
+  box-shadow: none;
+  cursor: pointer;
+}
+.c3d-root select.c3d-select:focus {
+  outline: none;
+  border-color: var(--c3d-dim);
+}
+.c3d-root select.c3d-select option {
+  background: #111;
+  color: #ddd;
+}
+
+.c3d-root input.c3d-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1px;
+  margin: 7px 0 6px;
+  padding: 0;
+  border: none;
+  background: var(--c3d-dim);
+  outline: none;
+}
+.c3d-root input.c3d-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 0;
+  background: var(--c3d-hi);
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+}
+.c3d-root input.c3d-range::-moz-range-thumb {
+  width: 7px;
+  height: 7px;
+  border-radius: 0;
+  background: var(--c3d-hi);
+  border: none;
+}
+
+/* Interrupteur carré */
+.c3d-root .c3d-switch {
+  position: relative;
+  width: 20px;
+  height: 11px;
+  flex: none;
+  border: 1px solid var(--c3d-dim);
+  border-radius: 1px;
+  background: transparent;
+  transition: background 0.2s;
+}
+.c3d-root .c3d-switch::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 7px;
+  height: 7px;
+  background: var(--c3d-dim);
+  transition: transform 0.2s, background 0.2s;
+}
+.c3d-root .c3d-switch.is-on {
+  border-color: var(--c3d-hi);
+}
+.c3d-root .c3d-switch.is-on::after {
+  transform: translateX(9px);
+  background: var(--c3d-hi);
+}
+
+/* Couleurs des données */
+.c3d-pal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 4px;
+}
+.c3d-root .c3d-pal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 4px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--c3d-dim);
+}
+.c3d-root .c3d-pal-row:hover {
+  color: var(--c3d-text);
+}
+.c3d-root .c3d-pal-row.is-active {
+  border-color: var(--c3d-dim);
+  color: var(--c3d-hi);
+}
+.c3d-pal-strip {
+  display: block;
+  width: 96px;
+  height: 3px;
+  border-radius: 1px;
+  flex: none;
+}
+.c3d-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  color: var(--c3d-dim);
+  font-size: 10px;
+}
+
+/* Forme : grille de boutons */
+.c3d-forms {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--c3d-line);
+  margin-bottom: 6px;
+}
+.c3d-root .c3d-form {
+  padding: 4px 2px;
+  text-align: center;
+  color: var(--c3d-dim);
+  border-right: 1px solid var(--c3d-line);
+  border-bottom: 1px solid var(--c3d-line);
+  font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.c3d-root .c3d-form:nth-child(3n) {
+  border-right: none;
+}
+.c3d-root .c3d-form:hover {
+  color: var(--c3d-hi);
+}
+.c3d-root .c3d-form.is-active {
+  background: var(--c3d-hi);
+  color: #000;
+}
+.c3d-q {
+  margin-top: 6px;
+  color: var(--c3d-dim);
+}
+.c3d-a {
+  margin-top: 2px;
+  color: var(--c3d-hi);
+  font-size: 11.5px;
+}
+
+.c3d-vp-foot {
+  padding-top: 8px;
+  border-top: 1px solid var(--c3d-line);
+}
+.c3d-vp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+}
+.c3d-root .c3d-link {
+  color: var(--c3d-dim);
+  font-size: 10.5px;
+}
+.c3d-root .c3d-link:hover {
+  color: var(--c3d-hi);
+}
+
+/* ----------------------------------------- légende « Par dossier » (bas) */
+.c3d-folders {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  z-index: 3;
+  pointer-events: none;
+}
+.c3d-panel-open .c3d-folders {
+  right: 254px;
+}
+.c3d-folders-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--c3d-dim);
+  margin-bottom: 3px;
+}
+.c3d-folders-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 14px;
+  max-height: 34px;
+  overflow: hidden;
+  pointer-events: auto;
+}
+.c3d-folders.is-expanded .c3d-folders-list {
+  max-height: 34vh;
+  overflow-y: auto;
+  background: var(--c3d-panel);
+  border: 1px solid var(--c3d-line);
+  padding: 4px 6px;
+}
+.c3d-root .c3d-fitem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 17px;
+  max-width: 230px;
+  color: var(--c3d-text);
+  font-size: 10.5px;
+  opacity: 0.85;
+}
+.c3d-root .c3d-fitem:hover,
+.c3d-root .c3d-fitem.is-active {
+  opacity: 1;
+  color: var(--c3d-hi);
+}
+.c3d-root .c3d-fitem.is-active .c3d-fname {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.c3d-fname {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.c3d-fnum {
+  color: var(--c3d-dim);
+  font-variant-numeric: tabular-nums;
+}
+.c3d-root .c3d-fall {
+  color: var(--c3d-dim);
+}
+
+/* ---------------------------------------------------------- étiquettes 3D */
+.c3d-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+.c3d-labelset {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.5s;
+}
+.c3d-labelset.c3d-out {
+  opacity: 0 !important;
+}
+.c3d-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-size: 10.5px;
+  color: rgba(225, 228, 235, 0.9);
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.9);
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+  visibility: hidden;
+}
+.c3d-label-s {
+  font-size: 0.86em;
+  color: var(--c3d-dim);
+  font-variant-numeric: tabular-nums;
+}
+.c3d-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+  display: inline-block;
+}
+.c3d-box {
+  padding: 1px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.45);
+  font-size: 10px;
+}
+.c3d-tick {
+  font-size: 9px;
+  color: var(--c3d-dim);
+}
+.c3d-count {
+  font-size: 9px;
+  color: var(--c3d-dim);
+}
+.c3d-legend {
+  font-size: 9.5px;
+}
+.c3d-ring {
+  font-size: 8.5px;
+  gap: 4px;
+}
+.c3d-ring .c3d-dot {
+  width: 4px;
+  height: 4px;
+}
+.c3d-life {
+  font-size: 9px;
+}
+.c3d-life .c3d-label-s {
+  color: var(--c3d-faint);
+}
+.c3d-peak {
+  flex-direction: column;
+  gap: 0;
+  font-size: 11.5px;
+  color: var(--c3d-hi);
+}
+
+/* --------------------------------------------- infobulle façon « étiquette » */
+.c3d-tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 340px;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.82);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 7;
+}
+.c3d-tip.show {
+  opacity: 1;
+}
+.c3d-tip-name {
+  color: var(--c3d-hi);
+  font-size: 11px;
+}
+.c3d-tip-sub {
+  color: var(--c3d-dim);
+  font-size: 9.5px;
+  margin-top: 1px;
+}
+.c3d-tipline {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 1px;
+  transform-origin: 0 0;
+  background: #e8c547;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 7;
+}
+.c3d-tipline.show {
+  opacity: 1;
+}
+
+/* -------------------------------------------------------- intro / chargement */
+.c3d-intro-text {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 58%;
+  text-align: center;
+  font-size: clamp(16px, 2.2vw, 28px);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: #fff;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 1s ease, transform 1.4s ease;
+  pointer-events: none;
+  z-index: 7;
+  padding: 0 16px;
+}
+.c3d-intro-text.low {
+  top: auto;
+  bottom: 12%;
+}
+.c3d-intro-text.show {
+  opacity: 1;
+  transform: none;
+}
+.c3d-loading {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--c3d-dim);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+  z-index: 7;
+}
+.c3d-loading.show {
+  opacity: 1;
+}
+
+.c3d-empty {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--c3d-dim);
+  font-size: 13px;
+  z-index: 2;
+}
+.c3d-is-empty .c3d-empty {
+  display: flex;
+}
+
+/* Écran étroit : panneau plus fin, légende réduite */
+.c3d-narrow .c3d-vpanel {
+  width: 200px;
+}
+.c3d-narrow.c3d-panel-open .c3d-folders {
+  right: 220px;
+}
+.c3d-narrow .c3d-root .c3d-search,
+.c3d-narrow .c3d-search {
+  width: 150px;
+}
+
+/* Groups → split into subfolders */
+.c3d-vp-sub {
+  color: var(--c3d-text);
+  margin: 2px 0 3px;
+}
+.c3d-split-list {
+  padding: 2px 0 6px 8px;
+  margin-bottom: 4px;
+  border-left: 1px solid var(--c3d-line);
+  max-height: 160px;
+  overflow-y: auto;
+}
+.c3d-split-list .c3d-vp-label {
+  color: var(--c3d-dim);
+}
+.c3d-vp-hint {
+  color: var(--c3d-faint);
+  font-size: 10px;
+}
+.c3d-vp-note {
+  color: var(--c3d-faint);
+  font-size: 10.5px;
+}
+
+/* Focus : la vue occupe toute la fenêtre d'Obsidian */
+.axon-mind-focus-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--layer-slides, 45);
+  background: #000;
+  -webkit-app-region: no-drag;
+}
+.c3d-root .c3d-focus-btn.is-active {
+  color: #000;
+  background: var(--c3d-hi);
+  border-color: var(--c3d-hi);
+}
+
+/* ------------------------------------------------------------ menu de gauche */
+.c3d-nav {
+  flex: none;
+  width: 132px;
+  height: 100%;
+  display: none;
+  flex-direction: column;
+  padding: 12px 10px 10px;
+  box-sizing: border-box;
+  border-right: 1px solid var(--c3d-line);
+  background: var(--c3d-bg);
+  z-index: 6;
+}
+.c3d-nav-on .c3d-nav {
+  display: flex;
+}
+.c3d-nav-on .c3d-menu-btn {
+  display: none !important;
+}
+.c3d-root .c3d-menu-btn {
+  padding: 0 7px;
+}
+.c3d-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 18px;
+}
+.c3d-brand-mark {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--c3d-dim);
+  box-sizing: border-box;
+  flex: none;
+}
+.c3d-brand-name {
+  flex: 1;
+  color: var(--c3d-hi);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.c3d-root .c3d-nav-hide {
+  color: var(--c3d-faint);
+  display: flex;
+}
+.c3d-root .c3d-nav-hide:hover {
+  color: var(--c3d-hi);
+}
+.c3d-brand-line {
+  width: 22px;
+  height: 2px;
+  margin: 7px 0 12px 16px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, #ff3b5c, #ffd23f, #5dff7a, #2fe0ff, #b05cff);
+  opacity: 0.8;
+}
+.c3d-root .c3d-nav-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--c3d-line);
+  border-radius: 3px;
+  color: var(--c3d-faint);
+  margin-bottom: 14px;
+}
+.c3d-root .c3d-nav-search:hover {
+  color: var(--c3d-text);
+  border-color: var(--c3d-dim);
+}
+.c3d-nav-search-t {
+  flex: 1;
+}
+.c3d-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.c3d-root .c3d-nav-item {
+  position: relative;
+  padding: 4px 0 4px 10px;
+  color: var(--c3d-text);
+  font-size: 11.5px;
+  opacity: 0.82;
+}
+.c3d-root .c3d-nav-item:hover {
+  opacity: 1;
+  color: var(--c3d-hi);
+}
+.c3d-root .c3d-nav-item.is-active {
+  opacity: 1;
+  color: var(--c3d-hi);
+  font-weight: 600;
+}
+.c3d-root .c3d-nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 1px;
+  background: var(--c3d-hi);
+}
+.c3d-nav-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.c3d-nav-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--c3d-dim);
+  font-size: 10px;
+}
+.c3d-live-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ff3b3b;
+  box-shadow: 0 0 6px #ff3b3b;
+  animation: c3d-pulse 2.4s ease-in-out infinite;
+}
+.c3d-nav-live.is-busy .c3d-live-dot {
+  background: #ffc23b;
+  box-shadow: 0 0 6px #ffc23b;
+  animation-duration: 0.6s;
+}
+.c3d-nav-status,
+.c3d-stage-status {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--c3d-text);
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+.c3d-nav-status.is-on {
+  display: flex;
+}
+.c3d-status-t {
+  color: var(--c3d-hi);
+  word-break: break-word;
+}
+.c3d-root .c3d-status-clear {
+  align-self: flex-start;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.c3d-stage-status {
+  position: absolute;
+  left: 10px;
+  top: 42px;
+  z-index: 5;
+  max-width: 260px;
+  padding: 5px 8px;
+  border: 1px solid var(--c3d-line);
+  border-radius: 3px;
+  background: var(--c3d-panel);
+}
+.c3d-root:not(.c3d-nav-on) .c3d-stage-status.is-on {
+  display: flex;
+}
+
+/* ------------------------------------------------------ colonnes (navigateur, droite) */
+.c3d-navigator,
+.c3d-side {
+  flex: none;
+  height: 100%;
+  display: none;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: var(--c3d-bg);
+  z-index: 6;
+  min-height: 0;
+}
+.c3d-navigator {
+  width: 220px;
+  border-right: 1px solid var(--c3d-line);
+  padding: 10px 6px 6px 8px;
+}
+.c3d-navigator-on .c3d-navigator {
+  display: flex;
+}
+.c3d-side {
+  width: 330px;
+  border-left: 1px solid var(--c3d-line);
+}
+.c3d-side-open .c3d-side {
+  display: flex;
+}
+.c3d-col-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px 8px 2px;
+}
+.c3d-side .c3d-col-head {
+  padding: 12px 12px 8px 14px;
+}
+.c3d-col-title {
+  color: var(--c3d-hi);
+  font-size: 13px;
+  font-weight: 600;
+}
+.c3d-col-title-big {
+  font-size: 14px;
+  line-height: 1.25;
+  word-break: break-word;
+}
+.c3d-col-sub,
+.c3d-side-sec {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--c3d-dim);
+}
+.c3d-col-sub {
+  padding: 2px 2px 5px;
+  border-bottom: 1px solid var(--c3d-line);
+  margin-bottom: 3px;
+}
+.c3d-side-sec {
+  margin: 16px 0 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--c3d-line);
+}
+.c3d-side-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 14px 16px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.c3d-side-body::-webkit-scrollbar,
+.c3d-tree::-webkit-scrollbar {
+  width: 4px;
+}
+.c3d-side-body::-webkit-scrollbar-thumb,
+.c3d-tree::-webkit-scrollbar-thumb {
+  background: var(--c3d-line);
+}
+.c3d-side-desc {
+  color: var(--c3d-text);
+  font-size: 10.5px;
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+
+/* Arbre des dossiers */
+.c3d-tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.c3d-root .c3d-tree-item,
+.c3d-root .c3d-tree-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  height: 20px;
+  padding-right: 6px;
+  border-radius: 2px;
+  color: var(--c3d-text);
+  font-size: 10.5px;
+}
+.c3d-root .c3d-tree-note {
+  color: var(--c3d-dim);
+  height: 18px;
+}
+.c3d-root .c3d-tree-item:hover,
+.c3d-root .c3d-tree-note:hover {
+  color: var(--c3d-hi);
+  background: rgba(255, 255, 255, 0.05);
+}
+.c3d-root .c3d-tree-item.is-active,
+.c3d-root .c3d-tree-note.is-active {
+  background: rgba(255, 255, 255, 0.88);
+  color: #000;
+}
+.c3d-root .c3d-tree-item.is-active .c3d-tree-n {
+  color: #333;
+}
+.c3d-root .c3d-tree-all {
+  padding-left: 17px;
+  font-weight: 600;
+}
+.c3d-tree-chev {
+  width: 9px;
+  flex: none;
+  color: var(--c3d-faint);
+  font-size: 9px;
+  text-align: center;
+}
+.c3d-tree-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.c3d-tree-n {
+  color: var(--c3d-faint);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+.c3d-tree-more {
+  color: var(--c3d-faint);
+  font-size: 10px;
+  height: 18px;
+  line-height: 18px;
+}
+
+/* Fiche d'une note */
+.c3d-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--c3d-dim);
+  font-size: 10px;
+}
+.c3d-card-dates {
+  margin: 3px 0 10px;
+}
+.c3d-card-ex {
+  color: var(--c3d-text);
+  font-size: 11.5px;
+  line-height: 1.55;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+.c3d-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.c3d-tag {
+  padding: 1px 6px;
+  border: 1px solid var(--c3d-line);
+  border-radius: 9px;
+  color: var(--c3d-text);
+  font-size: 10px;
+}
+.c3d-card-faint {
+  color: var(--c3d-faint);
+  font-size: 10.5px;
+}
+.c3d-card-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.c3d-root .c3d-btn {
+  height: 24px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--c3d-line);
+  border-radius: 3px;
+  color: var(--c3d-text);
+  font-size: 10.5px;
+}
+.c3d-root .c3d-btn:hover {
+  border-color: var(--c3d-dim);
+  color: var(--c3d-hi);
+}
+.c3d-root .c3d-btn-main {
+  background: var(--c3d-hi);
+  border-color: var(--c3d-hi);
+  color: #000;
+  font-weight: 600;
+}
+.c3d-root .c3d-btn-main:hover {
+  color: #000;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.3);
+}
+.c3d-root .c3d-rel {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--c3d-line);
+}
+.c3d-rel-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--c3d-text);
+  font-size: 11px;
+}
+.c3d-root .c3d-rel:hover .c3d-rel-name {
+  color: var(--c3d-hi);
+}
+.c3d-rel-sub {
+  color: var(--c3d-faint);
+  font-size: 9.5px;
+  padding-left: 11px;
+}
+
+/* Chronologie : barres cliquables */
+.c3d-chart {
+  margin: 4px 0 2px;
+}
+.c3d-bars {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  height: 112px;
+  border-bottom: 1px solid var(--c3d-line);
+}
+.c3d-root .c3d-bar {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  border-radius: 0;
+  transition: background 0.15s;
+}
+.c3d-root .c3d-bar:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.c3d-root .c3d-bar.is-active {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+.c3d-seg {
+  display: block;
+  width: 100%;
+  flex: none;
+}
+.c3d-axis {
+  position: relative;
+  height: 14px;
+}
+.c3d-tick-l {
+  position: absolute;
+  top: 3px;
+  transform: translateX(-50%);
+  color: var(--c3d-faint);
+  font-size: 9px;
+  white-space: nowrap;
+}
+.c3d-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  margin: 6px 0 4px;
+}
+.c3d-root .c3d-lg-item,
+.c3d-lg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--c3d-text);
+  font-size: 10px;
+}
+.c3d-root button.c3d-lg-item:hover {
+  color: var(--c3d-hi);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.c3d-side-body .c3d-vp-row .c3d-select {
+  width: 130px;
+}
+
+/* Toi */
+.c3d-you-big {
+  color: var(--c3d-hi);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-top: 2px;
+}
+.c3d-you-bar {
+  display: flex;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--c3d-line);
+}
+
+/* Légende du bas : ligne de la mémoire */
+.c3d-folders-rec {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  pointer-events: auto;
+}
+.c3d-folders-rec .c3d-folders-title {
+  margin: 0 4px 0 0;
+}
+.c3d-rec-strip {
+  width: 150px;
+  height: 3px;
+  border-radius: 2px;
+}
