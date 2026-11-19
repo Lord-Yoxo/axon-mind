@@ -1,7 +1,8 @@
 # Axon Mind
 
 An Obsidian plugin that shows every note in your vault as a 3D particle cloud (three.js):
-a brain on a body, molecule, grid, curve, clock, flow and lifelines, with animated transitions.
+a brain on a glowing spinal cord made of your notes in time order, plus molecule, grid, curve, wheel, flow
+and lifelines, with animated transitions.
 English by default, French available (*Français disponible* : View panel → Language).
 
 ## Install
@@ -9,13 +10,18 @@ English by default, French available (*Français disponible* : View panel → La
 ### Option 1 — with BRAT (easiest, auto-updates)
 
 1. In Obsidian: Settings → Community plugins → Browse → install and enable **BRAT**.
-2. Command palette → **BRAT: Add a beta plugin for testing**.
-3. Paste this repository's URL and confirm.
+2. Command palette (Ctrl/Cmd + P) → **BRAT: Add a beta plugin for testing**.
+3. Paste this and confirm:
+
+   ```
+   Lord-Yoxo/axon-mind
+   ```
+
 4. Settings → Community plugins → enable **Axon Mind**.
 
 ### Option 2 — manually
 
-1. Download `axon-mind-<version>.zip` from the latest release and unzip it.
+1. Download `axon-mind-<version>.zip` from the [latest release](https://github.com/Lord-Yoxo/axon-mind/releases/latest) and unzip it.
 2. Put the `axon-mind` folder (with `manifest.json`, `main.js`, `styles.css` inside) in
    `<your vault>/.obsidian/plugins/` — the `.obsidian` folder is hidden: show hidden files if needed.
 3. Restart Obsidian (or Settings → Community plugins → reload), turn off Restricted mode if asked,
