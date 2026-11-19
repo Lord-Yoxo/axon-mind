@@ -119,7 +119,7 @@ class AxonSettingTab extends PluginSettingTab {
       .setDesc(t('settingSplitDesc'))
       .addText((txt) =>
         txt
-          .setPlaceholder('LihFolk, Projects')
+          .setPlaceholder(t('splitPlaceholder'))
           .setValue(s.splitFolders)
           .onChange((v) => {
             s.splitFolders = v;

@@ -1,12 +1,12 @@
 // Panneaux autour de la vue : menu de gauche, navigateur de dossiers, et colonne
-// de droite (fiche d'une note, Chiffres, Chronologie « Quand tu as écrit », Toi).
+// de droite (fiche d'une note, Stats, Historique d'écriture, Profil).
 
 import { el, fmt, dayNumber, dayToDate } from './util.js';
 import { t, getLang, locale } from './i18n.js';
 import { folderTree, wordTotals } from './model.js';
 
-export const NAV_ITEMS = ['brain', 'navigator', 'numbers', 'timeline', 'you'];
-export const SIDE_KEYS = ['numbers', 'timeline', 'you'];
+export const NAV_ITEMS = ['mind', 'explorer', 'stats', 'history', 'profile'];
+export const SIDE_KEYS = ['stats', 'history', 'profile'];
 
 const ICON_SEARCH =
   '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="4.6"/><path d="M10.5 10.5 14 14"/></svg>';
@@ -55,8 +55,8 @@ export function syncNav(v) {
   const side = v.sideKey();
   for (const k of NAV_ITEMS) {
     let on = false;
-    if (k === 'navigator') on = !!s.navOpen;
-    else if (k === 'brain') on = !side && !s.navOpen && v.view === 'brain';
+    if (k === 'explorer') on = !!s.navOpen;
+    else if (k === 'mind') on = !side && !s.navOpen && v.view === 'brain';
     else on = side === k;
     v.navItems[k].classList.toggle('is-active', on);
   }
@@ -92,7 +92,7 @@ export function renderNavigator(v) {
   v.treeBox = null;
   if (!v.settings.navOpen || !v.model) return;
   const head = el('div', 'c3d-col-head', box);
-  el('span', 'c3d-col-title', head, t('nav.navigator'));
+  el('span', 'c3d-col-title', head, t('nav.explorer'));
   const x = el('button', 'c3d-vp-x', head, '×');
   x.title = t('close');
   x.onclick = () => v.toggleNavigator(false);
@@ -159,16 +159,16 @@ export function renderSide(v) {
   v.statWords = null;
   if (!key || !v.model) return;
   const head = el('div', 'c3d-col-head', box);
-  const titles = { note: v.model.notes[v.sel] ? v.model.notes[v.sel].name : '', numbers: t('nav.numbers'), timeline: t('tl.title'), you: t('you.title') };
+  const titles = { note: v.model.notes[v.sel] ? v.model.notes[v.sel].name : '', stats: t('nav.stats'), history: t('hist.title'), profile: t('profile.title') };
   el('span', 'c3d-col-title c3d-col-title-big', head, titles[key]);
   const x = el('button', 'c3d-vp-x', head, '×');
   x.title = t('close');
   x.onclick = () => v.closeSide();
   const body = (v.sideScroll = el('div', 'c3d-side-body', box));
   if (key === 'note') renderNote(v, body);
-  else if (key === 'numbers') renderNumbers(v, body);
-  else if (key === 'timeline') renderTimeline(v, body);
-  else if (key === 'you') renderYou(v, body);
+  else if (key === 'stats') renderStats(v, body);
+  else if (key === 'history') renderHistory(v, body);
+  else if (key === 'profile') renderProfile(v, body);
   body.scrollTop = keep;
 }
 
@@ -232,7 +232,7 @@ function renderNote(v, p) {
   const acts = el('div', 'c3d-card-acts', p);
   const open = el('button', 'c3d-btn c3d-btn-main', acts, t('card.open'));
   open.onclick = (e) => v.openNote(i, e);
-  const foc = el('button', 'c3d-btn', acts, t('card.focus'));
+  const foc = el('button', 'c3d-btn', acts, t('card.zoom'));
   foc.onclick = () => v.focusOnNote(i);
 
   const nb = [...m.adj[i]].sort((a, b) => m.notes[b].deg - m.notes[a].deg);
@@ -249,15 +249,15 @@ function renderNote(v, p) {
   }
 }
 
-// ---- Chiffres
-function renderNumbers(v, p) {
+// ---- Stats
+function renderStats(v, p) {
   const m = v.model;
   secTitle(p, t('statistics'));
   statLine(p, t('notes'), fmt(m.notes.length));
   statLine(p, t('linksCount'), fmt(m.directedLinks));
   statLine(p, t('folders'), fmt(m.groups.length));
   v.statWords = statLine(p, t('words'), '…');
-  statLine(p, t('isolated'), fmt(m.isolated), m.isolated ? () => v.highlightWhere('orph', t('you.orphL'), (n) => n.deg === 0) : null);
+  statLine(p, t('isolated'), fmt(m.isolated), m.isolated ? () => v.highlightWhere('orph', t('profile.orphL'), (n) => n.deg === 0) : null);
   const lpn = m.notes.length ? ((m.directedLinks * 2) / m.notes.length).toFixed(1) : '0';
   statLine(p, t('linksPerNote'), getLang() === 'fr' ? lpn.replace('.', ',') : lpn);
   v.updateWordStat();
@@ -289,7 +289,7 @@ function renderNumbers(v, p) {
   }
 }
 
-// ---- Chronologie
+// ---- Historique d'écriture
 /** Barres de temps : jour, semaine ou mois selon l'étendue des dates. */
 export function timelineData(model) {
   let min = Infinity;
@@ -323,7 +323,7 @@ export function timelineData(model) {
     const s = startOf(k);
     let label;
     if (unit === 'day') label = dateShort(s);
-    else if (unit === 'week') label = t('tl.weekOf', { d: dateShort(s) });
+    else if (unit === 'week') label = t('hist.weekOf', { d: dateShort(s) });
     else label = dayToDate(s).toLocaleDateString(locale(), { month: 'long', year: 'numeric' });
     const tick =
       unit === 'month' ? dayToDate(s).toLocaleDateString(locale(), { month: 'short', year: '2-digit' }) : dateShort(s);
@@ -391,12 +391,12 @@ function legend(p, items) {
   }
 }
 
-function renderTimeline(v, p) {
+function renderHistory(v, p) {
   const m = v.model;
   const tl = v.timeline || (v.timeline = timelineData(m));
-  el('div', 'c3d-side-desc', p, t('tl.desc', { unit: t('unit.' + tl.unit) }));
+  el('div', 'c3d-side-desc', p, t('hist.desc', { unit: t('unit.' + tl.unit) }));
   if (!tl.buckets.length) {
-    el('div', 'c3d-card-faint', p, t('tl.none'));
+    el('div', 'c3d-card-faint', p, t('hist.none'));
     return;
   }
   barChart(
@@ -407,21 +407,21 @@ function renderTimeline(v, p) {
       [b.created, C_CREATED],
       [b.edited, C_EDITED],
     ],
-    (b) => t('tl.bar', { label: b.label, c: fmt(b.created), e: fmt(b.edited) })
+    (b) => t('hist.bar', { label: b.label, c: fmt(b.created), e: fmt(b.edited) })
   );
   legend(p, [
     [t('created'), C_CREATED],
     [t('edited'), C_EDITED],
   ]);
-  if (tl.older) el('div', 'c3d-card-faint', p, t('tl.older', { n: fmt(tl.older) }));
+  if (tl.older) el('div', 'c3d-card-faint', p, t('hist.older', { n: fmt(tl.older) }));
 
-  // Étiquettes dans le temps : barres empilées par dossier ou par étiquette.
-  secTitle(p, t('tl.labels'));
+  // Sujets dans le temps : barres empilées par dossier ou par étiquette.
+  secTitle(p, t('hist.topics'));
   const row = el('div', 'c3d-vp-row', p);
-  el('span', 'c3d-vp-label', row, t('tl.label'));
+  el('span', 'c3d-vp-label', row, t('hist.label'));
   const sel = el('select', 'c3d-select', row);
   for (const k of ['folder', 'tag']) {
-    const o = el('option', null, sel, t('tl.' + k));
+    const o = el('option', null, sel, t('hist.' + k));
     o.value = k;
   }
   sel.value = v.tlLabel;
@@ -438,7 +438,7 @@ function renderTimeline(v, p) {
     totals.set(c, (totals.get(c) || 0) + 1);
   }
   if (byTag && !totals.size) {
-    el('div', 'c3d-card-faint', p, t('tl.noTags'));
+    el('div', 'c3d-card-faint', p, t('hist.noTags'));
     return;
   }
   const top = [...totals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 9).map((e) => e[0]);
@@ -465,14 +465,14 @@ function renderTimeline(v, p) {
   legend(p, items);
 }
 
-// ---- Toi
-function renderYou(v, p) {
+// ---- Profil
+function renderProfile(v, p) {
   const m = v.model;
   const N = m.notes.length || 1;
   const linked = m.notes.length - m.isolated;
   const big = el('div', 'c3d-you-big', p, pctTxt(Math.round((100 * linked) / N)));
   big.title = `${fmt(linked)} / ${fmt(m.notes.length)}`;
-  el('div', 'c3d-side-desc', p, t('you.linked'));
+  el('div', 'c3d-side-desc', p, t('profile.linked'));
   const bar = el('div', 'c3d-you-bar', p);
   const a = el('span', null, bar);
   a.style.width = `${(100 * linked) / N}%`;
@@ -481,15 +481,15 @@ function renderYou(v, p) {
   b.style.width = `${(100 * m.isolated) / N}%`;
   b.style.background = '#ff9a3c';
   legend(p, [
-    [`${t('you.linkedL')} ${fmt(linked)}`, C_CREATED],
-    [`${t('you.isolatedL')} ${fmt(m.isolated)}`, '#ff9a3c', m.isolated ? () => v.highlightWhere('orph', t('you.orphL'), (n) => n.deg === 0) : null],
+    [`${t('profile.linkedL')} ${fmt(linked)}`, C_CREATED],
+    [`${t('profile.isolatedL')} ${fmt(m.isolated)}`, '#ff9a3c', m.isolated ? () => v.highlightWhere('orph', t('profile.orphL'), (n) => n.deg === 0) : null],
   ]);
 
   // Écriture
   const { words, missing } = wordTotals(m);
-  secTitle(p, t('you.writing'));
-  statLine(p, t('you.words'), fmt(words) + (missing ? '…' : ''));
-  statLine(p, t('you.avg'), fmt(Math.round(words / Math.max(1, m.notes.length - missing))) + (missing ? '…' : ''));
+  secTitle(p, t('profile.writing'));
+  statLine(p, t('profile.words'), fmt(words) + (missing ? '…' : ''));
+  statLine(p, t('profile.avg'), fmt(Math.round(words / Math.max(1, m.notes.length - missing))) + (missing ? '…' : ''));
   let longest = -1;
   let lw = -1;
   m.notes.forEach((n, i) => {
@@ -499,10 +499,10 @@ function renderYou(v, p) {
       longest = i;
     }
   });
-  if (longest >= 0) statLine(p, t('you.longest'), m.notes[longest].name, () => v.selectNote(longest, { fly: true }));
+  if (longest >= 0) statLine(p, t('profile.longest'), m.notes[longest].name, () => v.selectNote(longest, { fly: true }));
 
   // Rythme
-  secTitle(p, t('you.rhythm'));
+  secTitle(p, t('profile.rhythm'));
   const days = new Map();
   const wd = new Array(7).fill(0);
   const hr = new Array(24).fill(0);
@@ -514,22 +514,22 @@ function renderYou(v, p) {
     wd[dt.getDay()]++;
     hr[dt.getHours()]++;
   }
-  statLine(p, t('you.activeDays'), fmt(days.size));
+  statLine(p, t('profile.activeDays'), fmt(days.size));
   let bestD = null;
   let bestN = 0;
   for (const [d, c] of days) if (c > bestN) [bestD, bestN] = [d, c];
   if (bestD != null)
-    statLine(p, t('you.bestDay'), `${dateShort(bestD)} · ${fmt(bestN)}`, () =>
+    statLine(p, t('profile.bestDay'), `${dateShort(bestD)} · ${fmt(bestN)}`, () =>
       v.highlightWhere('day:' + bestD, dateShort(bestD), (n) => n.mtime && dayNumber(n.mtime) === bestD)
     );
   const wBest = wd.indexOf(Math.max(...wd));
   const wname = new Date(2024, 0, 7 + wBest).toLocaleDateString(locale(), { weekday: 'long' });
-  statLine(p, t('you.weekday'), wname);
+  statLine(p, t('profile.weekday'), wname);
   const hBest = hr.indexOf(Math.max(...hr));
-  statLine(p, t('you.hour'), getLang() === 'fr' ? `${hBest} h` : `${hBest}:00`);
+  statLine(p, t('profile.hour'), getLang() === 'fr' ? `${hBest} h` : `${hBest}:00`);
 
   // Carrefours
-  secTitle(p, t('you.hubs'));
+  secTitle(p, t('profile.hubs'));
   const hubs = m.notes
     .filter((n) => n.deg > 0)
     .sort((x, y) => y.deg - x.deg)
@@ -537,17 +537,17 @@ function renderYou(v, p) {
   for (const n of hubs) statLine(p, n.name, t('nLinks', { n: fmt(n.deg) }), () => v.selectNote(n.i, { fly: true }));
 
   // En attente
-  secTitle(p, t('you.waiting'));
+  secTitle(p, t('profile.waiting'));
   const short = m.notes.filter((n) => {
     const w = m.wordCache.get(n.path);
     return w != null && w < 50;
   }).length;
-  statLine(p, missing ? t('you.counting') : t('you.short', { n: fmt(short) }), short ? t('you.light') : '', short
+  statLine(p, missing ? t('profile.counting') : t('profile.short', { n: fmt(short) }), short ? t('profile.light') : '', short
     ? () =>
-        v.highlightWhere('short', t('you.shortL'), (n) => {
+        v.highlightWhere('short', t('profile.shortL'), (n) => {
           const w = m.wordCache.get(n.path);
           return w != null && w < 50;
         })
     : null);
-  statLine(p, t('you.orph', { n: fmt(m.isolated) }), m.isolated ? t('you.light') : '', m.isolated ? () => v.highlightWhere('orph', t('you.orphL'), (n) => n.deg === 0) : null);
+  statLine(p, t('profile.orph', { n: fmt(m.isolated) }), m.isolated ? t('profile.light') : '', m.isolated ? () => v.highlightWhere('orph', t('profile.orphL'), (n) => n.deg === 0) : null);
 }

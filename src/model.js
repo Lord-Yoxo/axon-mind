@@ -14,8 +14,8 @@ export function parseSplit(text) {
 
 /**
  * Dossier d'une note. En général le dossier de premier niveau ; pour un
- * dossier « éclaté » (LihFolk par défaut), chaque sous-dossier direct compte
- * comme un dossier à part.
+ * dossier « éclaté » (réglage « Séparer en sous-dossiers », vide par défaut),
+ * chaque sous-dossier direct compte comme un dossier à part.
  */
 export function groupKeyFor(path, split) {
   const parts = path.split('/');

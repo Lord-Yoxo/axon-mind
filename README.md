@@ -1,9 +1,13 @@
 # Axon Mind
 
+![Axon Mind cycling through its forms (LARP mode)](https://raw.githubusercontent.com/Lord-Yoxo/axon-mind/main/docs/larp.webp)
+
 An Obsidian plugin that shows every note in your vault as a 3D particle cloud (three.js):
-a brain on a glowing spinal cord made of your notes in time order, plus molecule, grid, curve, wheel, flow
+a brain on a glowing spine made of your notes in time order, plus molecule, grid, curve, wheel, flow
 and lifelines, with animated transitions.
 English by default, French available (*Français disponible* : View panel → Language).
+
+![The Stats panel next to the brain](https://raw.githubusercontent.com/Lord-Yoxo/axon-mind/main/docs/stats.png)
 
 ## Install
 
@@ -31,14 +35,14 @@ Open it with the brain icon in the ribbon, or the command palette → "Axon Mind
 
 ## What you get
 
-- **Intro**: every note collapses into a single point ("It all starts with an idea"), "Loading your vault… %",
-  an explosion into a close-up of the brain, the camera pulls back to reveal the body, then "<n> ideas later.".
-  Click or press Esc to skip.
+- **Intro**: every note collapses into a single point ("Every mind starts as one dot."), "Loading your vault… %",
+  an explosion into a close-up of the brain, the camera pulls back to reveal the body, then
+  "<n> thoughts. One brain.". Click or press Esc to skip.
 - **7 forms** (View panel → Form, or keys 1–7):
-  1. **Brain**: notes form the brain (one region per folder) on a long glowing spinal cord — the **record**:
-     every note in time order, the oldest at the tip, the newest under the brain, bigger notes brighter.
-     A faint body (**Scaffold** slider) can be shown around it. The Anatomy slider goes from brain only to full
-     view; the Notes and Record switches show or hide each part.
+  1. **Brain**: notes form the brain (one region per folder) on a long glowing **spine**: every note in time
+     order, the oldest at the tip, the newest under the brain, bigger notes brighter. A faint body (**Shell**
+     slider) can be shown around it. The **Body** slider goes from brain only to the full view; the Notes and
+     Spine switches show or hide each part.
   2. **Molecule**: one atom per folder, notes in shells, [[links]] as lines, boxed labels.
   3. **Grid**: one block of points per folder, names on the left.
   4. **Curve**: a filled wave of points per day of modification (log scale: the peak stands out, small days
@@ -54,29 +58,36 @@ Open it with the brain icon in the ribbon, or the command palette → "Axon Mind
 - **Focus** (top left, or key F): Axon Mind fills the whole Obsidian window. Click again, F or Esc to go back.
 - **Reset view** (or key R): puts the camera back after zooming or rotating.
 - **Signals**: glowing beads travel along the links between notes, like nerve impulses.
-- **Menu** (left): Brain, Navigator, Numbers, Timeline, You. The ☰ button hides it; a red dot shows the view
-  is live (amber while it updates), with what is lit in the brain and a **Clear** link.
-- **Navigator**: your folder tree with counts; click a folder to light its notes in the brain, unfold it to
-  see its notes, click a note to open its card.
-- **Note card** (click a point): title, folder, dates, words, an excerpt, tags, **Open the note**, **Focus in
-  the brain** (the camera flies to it and stops turning) and its linked notes; the note and its neighbours
-  light up. Double-click or Ctrl/Cmd + click opens the note directly (or turn on "Click opens the note" in the
-  plugin settings).
-- **Timeline** ("When you wrote"): one bar per day, week or month — notes created and edited; click a bar to
-  light those notes (and their part of the spinal cord). "Labels over time" stacks the bars by folder or tag.
+- **Menu** (left): Mind, Explorer, Stats, History, Profile. The ☰ button hides it; a red dot shows the view
+  is live (amber while it updates), with what is highlighted and a **Clear** link.
+- **Explorer**: your folder tree with counts; click a folder to highlight its notes, unfold it to see its notes,
+  click a note to open its card.
+- **Note card** (click a point): title, folder, dates, words, an excerpt, tags, **Open the note**, **Zoom to
+  note** (the camera flies to it and stops turning) and its linked notes; the note and its neighbours are
+  highlighted. Double-click or Ctrl/Cmd + click opens the note directly (or turn on "Click opens the note" in
+  the plugin settings).
+- **History** ("Writing history"): one bar per day, week or month — notes created and edited; click a bar to
+  highlight those notes (and their part of the spine). "Topics over time" stacks the bars by folder or tag.
   While it is open, the brain is coloured by date (red = old, green = recent).
-- **Numbers**: notes, links, folders, words, isolated notes, biggest folders, most linked note.
-- **You**: how many of your notes are linked, words written, busiest day, favourite weekday and hour, hubs,
-  short notes and notes without links (one click lights them).
+- **Stats**: notes, links, folders, words, isolated notes, biggest folders, most linked note.
+- **Profile**: how many of your notes are linked, words written, busiest day, favourite weekday and hour, hubs,
+  short notes and notes without links (one click highlights them).
 - Hover a point: note name. Drag: rotate. Scroll: zoom. Right-drag: pan. Search with `/`, Enter opens the card
-  of the first match. Esc clears what is lit.
-- Bottom: legend (by folder, subfolder or tag — notes · links); click one to light it. Under it, the record's
+  of the first match. Esc clears the highlight.
+- Bottom: legend (by folder, subfolder or tag — notes · links); click one to highlight it. Under it, the spine's
   colours from oldest to newest.
 - **View panel** (right): colour theme, brightness, quality, **Notes by** folder / subfolder / tag / date /
-  size / links, **Record by** same as notes / folder / date, 9 palettes, form, anatomy, Notes / Record switches,
-  Scaffold, **split into subfolders** (pick which folders count each subfolder as its own folder), labels,
-  hide isolated notes, rotation, speed, breathing, links, signals, clouds, dust, point size, language, intro.
+  size / links, **Spine by** same as notes / folder / date, 9 palettes, form, Body, Notes / Spine switches,
+  Shell, **split into subfolders** (pick which folders count each subfolder as its own folder — none by default),
+  labels, hide isolated notes, rotation, speed, breathing, links, signals, clouds, dust, point size, language,
+  intro.
 - The view updates by itself when a note is created, edited, renamed or deleted.
+
+## Privacy
+
+Everything stays on your computer. Axon Mind reads your notes' paths, dates, sizes, tags, links and word counts
+to draw the view; it sends nothing over the network and stores only its own settings (in the plugin's
+`data.json`).
 
 ## Build from source
 
@@ -86,3 +97,7 @@ Sources live in `src/`. `main.js` is generated (it bundles three.js, MIT licence
 npm install
 npm run build
 ```
+
+## Licence
+
+MIT.

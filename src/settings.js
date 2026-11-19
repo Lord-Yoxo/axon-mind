@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS = {
   showPanel: true,
   showNav: true,
   navOpen: false, // folder navigator column
-  side: '', // '' | numbers | timeline | you  (right column)
+  side: '', // '' | stats | history | profile  (right column)
   clickOpens: false, // true = a click opens the note directly instead of showing its card
   splitFolders: '', // top-level folders whose subfolders count as separate folders, comma-separated
 };
@@ -40,9 +40,12 @@ export function migrateSettings(raw) {
   const s = Object.assign({}, DEFAULT_SETTINGS, raw || {});
   if (raw && raw.showNames === false && !raw.labels) s.labels = 'off';
   if (raw && raw.split === false) s.splitFolders = '';
-  if (raw && raw.showStats && !raw.side) s.side = 'numbers';
+  if (raw && raw.showStats && !raw.side) s.side = 'stats';
+  // Anciens noms de la colonne de droite (2.1.0).
+  const oldSide = { numbers: 'stats', timeline: 'history', you: 'profile' };
+  if (oldSide[s.side]) s.side = oldSide[s.side];
   if (s.language !== 'fr') s.language = 'en';
-  if (!['', 'numbers', 'timeline', 'you'].includes(s.side)) s.side = '';
+  if (!['', 'stats', 'history', 'profile'].includes(s.side)) s.side = '';
   if (!['same', 'folder', 'date'].includes(s.recordBy)) s.recordBy = 'same';
   delete s.showNames;
   delete s.showSettings;

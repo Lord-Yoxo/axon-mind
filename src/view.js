@@ -126,7 +126,7 @@ function pointsMaterial(searchFloor) {
 const wrapAngle = (a) => a - TAU * Math.round(a / TAU);
 
 const COLOR_MODES = () => ['folder', 'subfolder', 'tag', 'date', 'size', 'links'].map((k) => [k, t('mode.' + k)]);
-const RECORD_MODES = () => ['same', 'folder', 'date'].map((k) => [k, t('rec.' + k)]);
+const RECORD_MODES = () => ['same', 'folder', 'date'].map((k) => [k, t('spine.' + k)]);
 const CAT_MODES = new Set(['folder', 'subfolder', 'tag']);
 /** Couleur du temps : du rouge (ancien) au vert (récent), comme la vidéo. */
 const timeColor = (pal, x) => samplePalette(pal, 0.02 + 0.56 * clamp(x, 0, 1));
@@ -273,7 +273,7 @@ export class AxonView extends ItemView {
       }
     });
     this.btnStats = el('button', 'c3d-chip', tl);
-    this.btnStats.onclick = () => this.setSide(this.settings.side === 'numbers' ? '' : 'numbers');
+    this.btnStats.onclick = () => this.setSide(this.settings.side === 'stats' ? '' : 'stats');
     this.btnReset = el('button', 'c3d-chip', tl);
     this.btnReset.onclick = () => this.resetView();
     this.btnFocus = el('button', 'c3d-chip c3d-focus-btn', tl);
@@ -305,7 +305,7 @@ export class AxonView extends ItemView {
 
   syncPanels() {
     const s = this.settings;
-    this.btnStats.classList.toggle('is-active', s.side === 'numbers' && this.sel < 0);
+    this.btnStats.classList.toggle('is-active', s.side === 'stats' && this.sel < 0);
     this.panel.classList.toggle('is-open', !!s.showPanel);
     this.btnPanel.classList.toggle('is-active', !!s.showPanel);
     this.root.classList.toggle('c3d-panel-open', !!s.showPanel);
@@ -327,8 +327,8 @@ export class AxonView extends ItemView {
   }
 
   navTo(k) {
-    if (k === 'navigator') return this.toggleNavigator(!this.settings.navOpen);
-    if (k === 'brain') {
+    if (k === 'explorer') return this.toggleNavigator(!this.settings.navOpen);
+    if (k === 'mind') {
       this.clearSelection(false);
       this.setSide('');
       if (this.view !== 'brain') this.setView('brain');
@@ -366,9 +366,9 @@ export class AxonView extends ItemView {
     else this.setSide('');
   }
 
-  /** Mode de couleur effectif : la Chronologie colore tout par date. */
+  /** Mode de couleur effectif : l'Historique d'écriture colore tout par date. */
   colorModeEff() {
-    return this.settings.side === 'timeline' && this.sel < 0 ? 'date' : this.settings.colorMode;
+    return this.settings.side === 'history' && this.sel < 0 ? 'date' : this.settings.colorMode;
   }
 
   // --------------------------------------------------------- ce qui est allumé
@@ -377,7 +377,7 @@ export class AxonView extends ItemView {
     this.onSearch();
     syncStatus(this);
     renderNavigator(this);
-    if (this.sideKey() === 'timeline') renderSide(this);
+    if (this.sideKey() === 'history') renderSide(this);
   }
 
   clearHighlight() {
@@ -565,7 +565,7 @@ export class AxonView extends ItemView {
     // Couleurs des données
     s = sec(t('dataColours'));
     select(s, t('notesBy'), 'colorMode', COLOR_MODES(), () => this.recolor());
-    select(s, t('recordBy'), 'recordBy', RECORD_MODES(), () => this.recolor());
+    select(s, t('spineBy'), 'recordBy', RECORD_MODES(), () => this.recolor());
     const pl = el('div', 'c3d-pal-list', s);
     this.palBtns = [];
     for (const key of Object.keys(PALETTES)) {
@@ -602,13 +602,13 @@ export class AxonView extends ItemView {
         this.updateAnswer();
       }
     });
-    this.anatRow = slider(s, t('anatomy'), 'anatomy', 0, 1, 0.01, (v) => (v < 0.05 ? t('anatBrain') : v > 0.95 ? t('anatBody') : pct(v)), () => {
+    this.anatRow = slider(s, t('body'), 'anatomy', 0, 1, 0.01, (v) => (v < 0.05 ? t('bodyMin') : v > 0.95 ? t('bodyMax') : pct(v)), () => {
       this.anatTarget = this.settings.anatomy;
       if (this.view === 'brain') this.userCam = false;
     });
     toggle(s, t('showNotes'), 'showNotes');
-    toggle(s, t('showRecord'), 'showRecord', () => this.updateFolderBar());
-    slider(s, t('scaffold'), 'scaffold', 0, 1, 0.01, pct);
+    toggle(s, t('showSpine'), 'showRecord', () => this.updateFolderBar());
+    slider(s, t('shell'), 'scaffold', 0, 1, 0.01, pct);
     this.qEl = el('div', 'c3d-q', s);
     this.aEl = el('div', 'c3d-a', s);
 
@@ -2039,7 +2039,7 @@ export class AxonView extends ItemView {
     this.intro = { phase: 'seed', t0: now };
     this.root.classList.add('c3d-intro-on');
     this.introText.classList.remove('show', 'low');
-    this.introText.textContent = t('introIdea');
+    this.introText.textContent = t('introDot');
     this.loading.classList.add('show');
     this.setLabels(L, 0);
     this.updateAnswer();
@@ -2083,7 +2083,7 @@ export class AxonView extends ItemView {
         this.anatTarget = clamp(this.settings.anatomy, 0, 1);
       }
       if (!it.text2 && e > 2500) {
-        this.introText.textContent = t('introLater', { n: fmt(this.model.notes.length) });
+        this.introText.textContent = t('introCount', { n: fmt(this.model.notes.length) });
         this.introText.classList.add('show', 'low');
         it.text2 = now;
       }
@@ -2350,7 +2350,7 @@ export class AxonView extends ItemView {
     // Deuxième ligne : la mémoire (moelle), du plus ancien au plus récent.
     if (this.view === 'brain' && this.settings.showRecord !== false) {
       const rec = el('div', 'c3d-folders-rec', bar);
-      el('span', 'c3d-folders-title', rec, t('recordLegend'));
+      el('span', 'c3d-folders-title', rec, t('spineLegend'));
       el('span', 'c3d-fnum', rec, t('oldest'));
       const strip = el('span', 'c3d-rec-strip', rec);
       const rb = this.settings.recordBy;
@@ -2408,7 +2408,7 @@ export class AxonView extends ItemView {
         }
         this.updateWordStat();
         // La fiche et le panneau « Toi » affichent des nombres de mots.
-        if (todo.length && ['you', 'note'].includes(this.sideKey())) renderSide(this);
+        if (todo.length && ['profile', 'note'].includes(this.sideKey())) renderSide(this);
       } while (this.wordsAgain && !this.destroyed);
     } finally {
       this.loadingWords = false;
