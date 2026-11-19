@@ -38,12 +38,17 @@ Open it with the brain icon in the ribbon, or the command palette → "Axon Mind
 - **Intro**: every note collapses into a single point ("Every mind starts as one dot."), "Loading your vault… %",
   an explosion into a close-up of the brain, the camera pulls back to reveal the body, then
   "<n> thoughts. One brain.". Click or press Esc to skip.
-- **7 forms** (View panel → Form, or keys 1–7):
+- **8 forms** (View panel → Form, or keys 1–8):
   1. **Brain**: notes form the brain (one region per folder) on a long glowing **spine**: every note in time
-     order, the oldest at the tip, the newest under the brain, bigger notes brighter. A faint body (**Shell**
-     slider) can be shown around it. The **Body** slider goes from brain only to the full view; the Notes and
-     Spine switches show or hide each part.
-  2. **Molecule**: one atom per folder, notes in shells, [[links]] as lines, boxed labels.
+     order, the oldest at the tip, the newest under the brain, bigger notes brighter. Fine luminous fibres (your
+     links) run through the brain, and a soft halo (**Glow** slider) gives it volume. A glass-like wire-frame
+     body — short neck, broad shoulders, torso — can be shown around it (**Shell** slider), with a glowing
+     **skeleton** (ribs, sternum, collarbones, shoulder blades, pelvis) and **nerves** branching from the spine to
+     the shoulders, along the ribs and down the back (**Skeleton** slider). The **Body** slider goes from brain
+     only to the full view; the Notes and Spine switches show or hide each part.
+  2. **Molecule**: one glowing nebula per folder — a dense, bright core with the most linked notes, a coloured
+     haze around it — set apart by dark space, with your [[links]] as filaments between them, stars in between
+     and boxed labels.
   3. **Grid**: one block of points per folder, names on the left.
   4. **Curve**: a filled wave of points per day of modification (log scale: the peak stands out, small days
      stay visible), tilted dates, folders on the right.
@@ -53,8 +58,12 @@ Open it with the brain icon in the ribbon, or the command palette → "Axon Mind
   6. **Flow**: each note flows from its folder to the folder it links to most.
   7. **Lifelines**: one line per folder; each note lives from its first to its last known date, arcs link the
      days the folder changed.
+  8. **Microscope**: each folder is a cell — a sphere filled with its notes, with a glowing membrane and a
+     nucleus — packed like a sunflower around the biggest one, in a slowly turning Petri dish seen at an angle.
   Each form shows a question and its answer computed from your vault.
-- **LARP** (top left, or key L): cycles through the 7 forms, 2 seconds each, on a loop — made for filming.
+- **LARP** (top left, or key L): cycles through the 8 forms, 2 seconds each, on a loop — made for filming.
+  With **LARP colours** on (default), each form gets its own single hue — red, green, blue… — and your usual
+  colours come back when LARP stops.
 - **Focus** (top left, or key F): Axon Mind fills the whole Obsidian window. Click again, F or Esc to go back.
 - **Reset view** (or key R): puts the camera back after zooming or rotating.
 - **Signals**: glowing beads travel along the links between notes, like nerve impulses.
@@ -76,11 +85,12 @@ Open it with the brain icon in the ribbon, or the command palette → "Axon Mind
   of the first match. Esc clears the highlight.
 - Bottom: legend (by folder, subfolder or tag — notes · links); click one to highlight it. Under it, the spine's
   colours from oldest to newest.
-- **View panel** (right): colour theme, brightness, quality, **Notes by** folder / subfolder / tag / date /
-  size / links, **Spine by** same as notes / folder / date, 9 palettes, form, Body, Notes / Spine switches,
-  Shell, **split into subfolders** (pick which folders count each subfolder as its own folder — none by default),
-  labels, hide isolated notes, rotation, speed, breathing, links, signals, clouds, dust, point size, language,
-  intro.
+- **View panel** (right): colour theme, brightness, glow, quality, **Notes by** folder / subfolder / tag / date /
+  size / links / **single colour** (the whole scene in one hue of the palette, the most linked notes shining
+  white), **Spine by** same as notes / folder / date, 9 palettes, form, Body, Notes / Spine switches,
+  Shell, Skeleton, **split into subfolders** (pick which folders count each subfolder as its own folder — none by default),
+  labels, hide isolated notes, rotation, speed, breathing, LARP colours, links, signals, clouds, dust, point
+  size, language, intro.
 - The view updates by itself when a note is created, edited, renamed or deleted.
 
 ## Privacy

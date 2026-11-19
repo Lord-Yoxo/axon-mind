@@ -3,11 +3,13 @@
 export const DEFAULT_SETTINGS = {
   language: 'en', // en | fr
   view: 'brain',
-  colorMode: 'folder', // folder | subfolder | tag | date | size | links
+  colorMode: 'folder', // folder | subfolder | tag | date | size | links | mono
   recordBy: 'same', // same | folder | date  (colour of the record = the spinal cord)
   palette: 'defaut', // defaut | lave | ocean | foret | aurore | matrice | celeste | braise | soleil
   theme: 'original', // original | minuit | graphite | pin | prune | braise
   brightness: 1,
+  glow: 0.5, // soft halo around the notes
+  larpColors: true, // LARP changes the colour (one hue per form) at each step
   pointSize: 1,
   dust: 0.75,
   links: true,
@@ -23,6 +25,7 @@ export const DEFAULT_SETTINGS = {
   hideIsolated: false,
   anatomy: 1,
   scaffold: 0.3, // faint body around the spinal cord (0 = none)
+  skeleton: 0.7, // ribs, sternum, collarbones, shoulder blades, pelvis and nerves
   showNotes: true,
   showRecord: true,
   wheelStyle: 'slices', // slices | clock

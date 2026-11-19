@@ -4,7 +4,7 @@
 import { ItemView, Keymap } from 'obsidian';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { VIEWS, ROLE, BODY_ROLES, computeLayout, flowPositions } from './layouts.js';
+import { VIEWS, ROLE, BODY_ROLES, SKEL_ROLES, computeLayout, flowPositions } from './layouts.js';
 import { buildModel, wordTotals, countWords, parseSplit } from './model.js';
 import { t, setLang, getLang } from './i18n.js';
 import { buildNav, syncNav, syncStatus, setLive, renderNavigator, renderSide, SIDE_KEYS } from './panels.js';
@@ -48,6 +48,8 @@ uniform float uAlpha;
 uniform float uDrift;
 uniform float uBody;
 uniform float uRecord;
+uniform float uSkel;
+uniform float uMaxPx;
 attribute vec3 aColor;
 attribute float aSize;
 attribute float aPhase;
@@ -61,14 +63,15 @@ void main() {
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
   float pulse = 1.0 + uBreath * 0.45 * sin(uTime * 1.5 + ph);
   float hit = mix(1.0, mix(0.8, 2.2, aMatch), uSearch);
-  // aBody : 0 = normal, 1 = silhouette du corps, 2 = mémoire (moelle).
+  // aBody : 0 = normal, 1 = silhouette du corps, 2 = moelle, 3 = squelette et nerfs.
   float isBody = step(0.5, aBody) * (1.0 - step(1.5, aBody));
-  float isRec = step(1.5, aBody);
-  float a = mix(1.0, mix(uSearchFloor, 1.3, aMatch), uSearch) * mix(1.0, uBody, isBody) * mix(1.0, uRecord, isRec);
+  float isRec = step(1.5, aBody) * (1.0 - step(2.5, aBody));
+  float isSkel = step(2.5, aBody);
+  float a = mix(1.0, mix(uSearchFloor, 1.3, aMatch), uSearch) * mix(1.0, uBody, isBody) * mix(1.0, uRecord, isRec) * mix(1.0, uSkel, isSkel);
   float dist = max(-mv.z, 0.001);
   float px = aSize * uSize * pulse * hit * uScale / dist;
   vAlpha = a * uAlpha * smoothstep(6.0, 60.0, dist) * clamp(px / 1.5, 0.2, 1.0);
-  gl_PointSize = clamp(px, 1.0, 90.0);
+  gl_PointSize = clamp(px, 1.0, uMaxPx);
   vColor = aColor;
   gl_Position = projectionMatrix * mv;
 }`;
@@ -83,6 +86,17 @@ void main() {
   float core = exp(-d2 * 9.0);
   float halo = exp(-d2 * 2.6) * 0.3;
   gl_FragColor = vec4(vColor, (core + halo) * vAlpha);
+}`;
+
+/** Lueur : un grand disque très doux autour de chaque note (donne du volume au cerveau). */
+const GLOW_FRAG = /* glsl */ `
+varying vec3 vColor;
+varying float vAlpha;
+void main() {
+  vec2 c = gl_PointCoord - vec2(0.5);
+  float d2 = dot(c, c) * 4.0;
+  if (d2 > 1.0) discard;
+  gl_FragColor = vec4(vColor, exp(-d2 * 3.2) * (1.0 - d2) * vAlpha);
 }`;
 
 const RING_VERT = /* glsl */ `
@@ -100,11 +114,12 @@ void main() {
   gl_FragColor = vec4(uColor, ring * uOpacity);
 }`;
 
-function pointsMaterial(searchFloor) {
+function pointsMaterial(searchFloor, frag = POINT_FRAG) {
   return new THREE.ShaderMaterial({
     vertexShader: POINT_VERT,
-    fragmentShader: POINT_FRAG,
+    fragmentShader: frag,
     uniforms: {
+      uMaxPx: { value: 90 },
       uTime: { value: 0 },
       uSize: { value: 1 },
       uScale: { value: 800 },
@@ -115,6 +130,7 @@ function pointsMaterial(searchFloor) {
       uDrift: { value: 0.3 },
       uBody: { value: 1 },
       uRecord: { value: 1 },
+      uSkel: { value: 1 },
     },
     transparent: true,
     depthTest: false,
@@ -125,7 +141,11 @@ function pointsMaterial(searchFloor) {
 
 const wrapAngle = (a) => a - TAU * Math.round(a / TAU);
 
-const COLOR_MODES = () => ['folder', 'subfolder', 'tag', 'date', 'size', 'links'].map((k) => [k, t('mode.' + k)]);
+const COLOR_MODES = () => ['folder', 'subfolder', 'tag', 'date', 'size', 'links', 'mono'].map((k) => [k, t('mode.' + k)]);
+/** Teintes du LARP en couleurs : une teinte unique par forme, qui change à chaque étape. */
+const LARP_PALETTES = ['lave', 'foret', 'ocean', 'soleil', 'matrice', 'celeste', 'braise'];
+/** Position, dans chaque palette, de sa teinte la plus franche (lave → rouge, océan → bleu…). */
+const MONO_T = { defaut: 0.62, lave: 0.36, ocean: 0.45, foret: 0.5, aurore: 0.1, matrice: 0.5, celeste: 0.3, braise: 0.45, soleil: 0.42 };
 const RECORD_MODES = () => ['same', 'folder', 'date'].map((k) => [k, t('spine.' + k)]);
 const CAT_MODES = new Set(['folder', 'subfolder', 'tag']);
 /** Couleur du temps : du rouge (ancien) au vert (récent), comme la vidéo. */
@@ -368,6 +388,7 @@ export class AxonView extends ItemView {
 
   /** Mode de couleur effectif : l'Historique d'écriture colore tout par date. */
   colorModeEff() {
+    if (this.arpPal) return 'mono';
     return this.settings.side === 'history' && this.sel < 0 ? 'date' : this.settings.colorMode;
   }
 
@@ -560,6 +581,7 @@ export class AxonView extends ItemView {
       () => this.applyTheme()
     );
     slider(s, t('brightness'), 'brightness', 0.4, 1.8, 0.01, pct);
+    slider(s, t('glow'), 'glow', 0, 1, 0.01, pct);
     select(s, t('quality'), 'quality', ['fast', 'high', 'max'].map((k) => [k, t('quality.' + k)]), () => this.applyQuality());
 
     // Couleurs des données
@@ -609,6 +631,7 @@ export class AxonView extends ItemView {
     toggle(s, t('showNotes'), 'showNotes');
     toggle(s, t('showSpine'), 'showRecord', () => this.updateFolderBar());
     slider(s, t('shell'), 'scaffold', 0, 1, 0.01, pct);
+    slider(s, t('skeleton'), 'skeleton', 0, 1, 0.01, pct);
     this.qEl = el('div', 'c3d-q', s);
     this.aEl = el('div', 'c3d-a', s);
 
@@ -625,6 +648,12 @@ export class AxonView extends ItemView {
     toggle(s, t('rotation'), 'turning');
     slider(s, t('speed'), 'rotationSpeed', 0, 1.5, 0.01, pct);
     slider(s, t('breathing'), 'breathing', 0, 1, 0.01, pct);
+    toggle(s, t('larpColors'), 'larpColors', () => {
+      if (!this.settings.larpColors && this.arpPal) {
+        this.arpPal = null;
+        this.recolor();
+      }
+    });
 
     // Dessin
     s = sec(t('drawing'));
@@ -779,6 +808,18 @@ export class AxonView extends ItemView {
 
     this.noteMat = pointsMaterial(0.06);
     this.dustMat = pointsMaterial(0.3);
+    this.glowMat = pointsMaterial(0.02, GLOW_FRAG);
+    this.glowMat.uniforms.uMaxPx.value = 260;
+    // Enveloppe du corps en fil de fer (forme Cerveau) : de fins traits, très discrets.
+    this.shellMat = new THREE.LineBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+    });
+    this.shellAlpha = 0;
     this.linkMat = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
@@ -1049,6 +1090,7 @@ export class AxonView extends ItemView {
 
     if (this.notePoints) {
       this.group.remove(this.notePoints);
+      if (this.glowPoints) this.group.remove(this.glowPoints);
       this.notePoints.geometry.dispose();
     }
     const g = new THREE.BufferGeometry();
@@ -1058,10 +1100,85 @@ export class AxonView extends ItemView {
     g.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1));
     g.setAttribute('aMatch', new THREE.BufferAttribute(this.match, 1).setUsage(THREE.DynamicDrawUsage));
     g.setAttribute('aBody', new THREE.BufferAttribute(new Float32Array(N), 1));
+    // La lueur partage la géométrie des notes (mêmes positions, mêmes couleurs), dessinée en dessous.
+    this.glowPoints = new THREE.Points(g, this.glowMat);
+    this.glowPoints.frustumCulled = false;
+    this.glowPoints.renderOrder = -1;
+    this.group.add(this.glowPoints);
     this.notePoints = new THREE.Points(g, this.noteMat);
     this.notePoints.frustumCulled = false;
     this.group.add(this.notePoints);
     this.setHover(-1);
+  }
+
+  /** Enveloppe en fil de fer de la forme Cerveau (anneaux et méridiens du corps). */
+  buildShell(L) {
+    if (this.shellLines) {
+      this.group.remove(this.shellLines);
+      this.shellLines.geometry.dispose();
+      this.shellLines = null;
+    }
+    if (this.skelLines) {
+      this.group.remove(this.skelLines);
+      this.skelLines.geometry.dispose();
+      this.skelLines = null;
+    }
+    if (!L || !L.shellLines || !this.shellMat) return;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(L.shellLines, 3));
+    this.shellLines = new THREE.LineSegments(g, this.shellMat);
+    this.shellLines.frustumCulled = false;
+    this.shellLines.renderOrder = -3;
+    this.group.add(this.shellLines);
+    // Squelette (côtes, sternum, clavicules, omoplates, bassin) et nerfs : traits fins colorés.
+    if (L.skelLines && L.skelLines.length) {
+      if (!this.skelMat) {
+        this.skelMat = new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          opacity: 0,
+          blending: THREE.AdditiveBlending,
+          depthTest: false,
+          depthWrite: false,
+        });
+      }
+      this.skelKind = L.skelKind;
+      this.skelY = new Float32Array(L.skelLines.length / 3);
+      for (let k = 0; k < this.skelY.length; k++) this.skelY[k] = L.skelLines[k * 3 + 1];
+      this.skelBody = L.body;
+      const sg = new THREE.BufferGeometry();
+      sg.setAttribute('position', new THREE.BufferAttribute(L.skelLines, 3));
+      sg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(L.skelLines.length), 3));
+      this.skelLines = new THREE.LineSegments(sg, this.skelMat);
+      this.skelLines.frustumCulled = false;
+      this.skelLines.renderOrder = -2;
+      this.group.add(this.skelLines);
+      this.colorSkeleton();
+    }
+  }
+
+  /** Couleurs du squelette : os blanc teinté, nerfs de la couleur de la scène (ou dégradé du haut vers le bas). */
+  colorSkeleton() {
+    if (!this.skelLines || !this.model) return;
+    const pal = this.palette();
+    const mono = this.colorModeEff() === 'mono' ? this.monoBase() : null;
+    const dc = dustColor(pal);
+    const col = this.skelLines.geometry.attributes.color;
+    const b = this.skelBody || { top: 33, bottom: -262 };
+    for (let k = 0; k < this.skelKind.length; k++) {
+      let c;
+      if (this.skelKind[k] === 0) {
+        const base = mono || dc;
+        c = [base[0] * 0.5 + 0.5, base[1] * 0.5 + 0.5, base[2] * 0.5 + 0.5];
+      } else {
+        const along = clamp((b.top - this.skelY[k]) / (b.top - b.bottom), 0, 1);
+        c = mono || samplePalette(pal, 0.08 + 0.8 * along);
+      }
+      col.array[k * 3] = c[0];
+      col.array[k * 3 + 1] = c[1];
+      col.array[k * 3 + 2] = c[2];
+    }
+    col.needsUpdate = true;
   }
 
   buildLinks() {
@@ -1080,7 +1197,63 @@ export class AxonView extends ItemView {
     this.linkLines.frustumCulled = false;
     this.linkLines.renderOrder = -1;
     this.group.add(this.linkLines);
+    this.buildFibers();
     this.updateLinkPositions();
+  }
+
+  /**
+   * Fibres du cerveau : une sélection de liens (surtout entre dossiers différents, qui traversent
+   * le cerveau de part en part) dessinés en lumineux, pour voir les filaments à l'intérieur.
+   */
+  buildFibers() {
+    if (this.fiberLines) {
+      this.group.remove(this.fiberLines);
+      this.fiberLines.geometry.dispose();
+      this.fiberLines = null;
+    }
+    const pairs = this.model.pairs;
+    const notes = this.model.notes;
+    const M = pairs.length / 2;
+    // Les notes « carrefours » (les plus liées) deviennent des neurones : leurs liens partent en éventail.
+    const hubs = new Set(
+      [...notes]
+        .sort((a, b) => b.deg - a.deg)
+        .slice(0, 48)
+        .filter((n) => n.deg > 2)
+        .map((n) => n.i)
+    );
+    const cand = [];
+    for (let k = 0; k < M; k++) {
+      const a = pairs[k * 2];
+      const b = pairs[k * 2 + 1];
+      const hub = hubs.has(a) || hubs.has(b);
+      const cross = notes[a].gi !== notes[b].gi;
+      cand.push([(hub ? 1 : cross ? 0.4 : 0.15) * hash01(k, 911), k]);
+    }
+    cand.sort((x, y) => y[0] - x[0]);
+    const F = Math.min(1500, M);
+    this.fiberIdx = Uint32Array.from(cand.slice(0, F).map((c) => c[1]));
+    if (!F) return;
+    if (!this.fiberMat) {
+      this.fiberMat = new THREE.LineBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        depthWrite: false,
+      });
+      this.fiberAlpha = 0;
+    }
+    this.fiberPos = new Float32Array(F * 6);
+    this.fiberCol = new Float32Array(F * 6);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(this.fiberPos, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('color', new THREE.BufferAttribute(this.fiberCol, 3).setUsage(THREE.DynamicDrawUsage));
+    this.fiberLines = new THREE.LineSegments(g, this.fiberMat);
+    this.fiberLines.frustumCulled = false;
+    this.fiberLines.renderOrder = -1;
+    this.group.add(this.fiberLines);
   }
 
   updateLinkPositions() {
@@ -1098,6 +1271,15 @@ export class AxonView extends ItemView {
       lp[o + 5] = c[b + 2];
     }
     this.linkLines.geometry.attributes.position.needsUpdate = true;
+    if (this.fiberLines) {
+      const fp = this.fiberPos;
+      const idx = this.fiberIdx;
+      for (let f = 0; f < idx.length; f++) {
+        const o = f * 6;
+        fp.set(lp.subarray(idx[f] * 6, idx[f] * 6 + 6), o);
+      }
+      this.fiberLines.geometry.attributes.position.needsUpdate = true;
+    }
   }
 
   updateLinkColors() {
@@ -1120,6 +1302,20 @@ export class AxonView extends ItemView {
       lc[o + 7] = alpha;
     }
     this.linkLines.geometry.attributes.color.needsUpdate = true;
+    if (this.fiberLines) {
+      // Fibres : la couleur des deux notes, éclaircie (filament lumineux), éteinte si une note est masquée.
+      const fc = this.fiberCol;
+      const idx = this.fiberIdx;
+      for (let f = 0; f < idx.length; f++) {
+        const k = idx[f] * 2;
+        const off = this.hidden[p[k]] || this.hidden[p[k + 1]] ? 0 : 1;
+        for (let e = 0; e < 2; e++) {
+          const ni = p[k + e] * 3;
+          for (let j = 0; j < 3; j++) fc[f * 6 + e * 3 + j] = (c[ni + j] * 0.85 + 0.08) * off;
+        }
+      }
+      this.fiberLines.geometry.attributes.color.needsUpdate = true;
+    }
   }
 
   layout(key) {
@@ -1127,6 +1323,7 @@ export class AxonView extends ItemView {
       const aspect = this.width && this.height ? this.width / this.height : 1.6;
       this.layouts[key] = computeLayout(key, this.model, MAX_DUST, aspect, { wheelStyle: this.settings.wheelStyle });
       this.layouts[key].aspect = aspect;
+      if (key === 'brain') this.buildShell(this.layouts[key]);
     }
     return this.layouts[key];
   }
@@ -1146,7 +1343,7 @@ export class AxonView extends ItemView {
   setDustBody(L) {
     for (let i = 0; i < MAX_DUST; i++) {
       const r = L.dustRole[i];
-      this.dustBody[i] = r === ROLE.RECORD ? 2 : BODY_ROLES.has(r) ? 1 : 0;
+      this.dustBody[i] = r === ROLE.RECORD ? 2 : SKEL_ROLES.has(r) ? 3 : BODY_ROLES.has(r) ? 1 : 0;
     }
     this.dustPoints.geometry.attributes.aBody.needsUpdate = true;
     this.dustOwnerCur = L.dustOwner;
@@ -1178,7 +1375,21 @@ export class AxonView extends ItemView {
 
   // -------------------------------------------------------------- couleurs
   palette() {
+    if (this.arpPal) return this.arpPal; // LARP en couleurs : la teinte change à chaque forme
     return PALETTES[this.settings.palette] ? this.settings.palette : 'defaut';
+  }
+
+  /** Teinte du mode « une seule couleur » : la couleur la plus franche de la palette choisie. */
+  monoBase() {
+    const pal = this.palette();
+    return samplePalette(pal, MONO_T[pal] != null ? MONO_T[pal] : 0.55);
+  }
+
+  /** Couleur des traits de l'enveloppe : la teinte unique, ou le gris-bleu de la poussière. */
+  colorShell() {
+    if (!this.shellMat) return;
+    const c = this.colorModeEff() === 'mono' ? this.monoBase() : dustColor(this.palette());
+    this.shellMat.color.setRGB(c[0], c[1], c[2]);
   }
 
   computeNoteColors() {
@@ -1193,6 +1404,7 @@ export class AxonView extends ItemView {
     const lmin = Math.log(m.minSize);
     const lmax = Math.log(m.maxSize);
     const ldeg = Math.log1p(m.maxDeg) || 1;
+    const mono = this.monoBase();
     // Catégories (sous-dossier, étiquette) : une couleur par catégorie, dans l'ordre alphabétique.
     this.cats = null;
     this.noteCat = null;
@@ -1238,6 +1450,15 @@ export class AxonView extends ItemView {
             c = dustColor(pal);
             k = 0.55;
           } else tt = cat.t;
+          break;
+        }
+        case 'mono': {
+          // Une seule teinte : plus ou moins lumineuse, et les notes les plus liées tirent vers le blanc.
+          const b = mono;
+          // Chaque dossier a sa nuance (plus clair / plus sombre) : les cellules restent distinctes.
+          const v = 0.38 + 0.42 * hash01(n.gi, 43) + 0.32 * hash01(n.seed, 41);
+          const w = Math.min(0.85, 0.7 * Math.sqrt(n.deg / Math.max(1, m.maxDeg)) + (hash01(n.seed, 42) < 0.035 ? 0.45 : 0));
+          c = [0, 1, 2].map((j) => b[j] * v * (1 - w) + w);
           break;
         }
         default:
@@ -1303,6 +1524,8 @@ export class AxonView extends ItemView {
     const body = L.body;
     const rb = this.settings.recordBy;
     const recTime = rb === 'date' || (rb === 'same' && this.colorModeEff() === 'date');
+    // Une seule couleur : toute la scène (moelle, corps, poussière) prend la même teinte.
+    const mono = this.colorModeEff() === 'mono' ? this.monoBase() : null;
     const raw = this.noteRaw;
     const fc = this.folderCol;
     const notes = this.model.notes;
@@ -1328,6 +1551,16 @@ export class AxonView extends ItemView {
           k = 0.4 + 0.3 * h + 0.4 * vert;
           break;
         }
+        case ROLE.BONE:
+          // Os : blanc teinté (de la couleur unique, ou du gris-bleu de la poussière).
+          c = mono ? [mono[0] * 0.6 + 0.4, mono[1] * 0.6 + 0.4, mono[2] * 0.6 + 0.4] : [dc[0] * 0.55 + 0.45, dc[1] * 0.55 + 0.45, dc[2] * 0.55 + 0.45];
+          k = 0.34 + 0.3 * h;
+          break;
+        case ROLE.NERVE:
+          // Nerfs : la teinte de la scène, ou le dégradé de la palette du cou vers le bas du corps.
+          c = mono || samplePalette(pal, 0.08 + 0.8 * along);
+          k = 0.45 + 0.4 * h;
+          break;
         case ROLE.FILAMENT: {
           c = [dc[0] * 0.3 + G[0] * 0.7, dc[1] * 0.3 + G[1] * 0.7, dc[2] * 0.3 + G[2] * 0.7];
           // Plus discrets là où ils se rejoignent (sinon un point blanc au centre du cerveau).
@@ -1366,8 +1599,9 @@ export class AxonView extends ItemView {
           k = 0.75 + 0.45 * h;
           break;
         case ROLE.ORBIT:
-          c = [G[0] * 0.6 + dc[0] * 0.4, G[1] * 0.6 + dc[1] * 0.4, G[2] * 0.6 + dc[2] * 0.4];
-          k = 0.3 + 0.3 * h;
+          // Brume colorée autour de chaque amas (molécule).
+          c = [G[0] * 0.82 + dc[0] * 0.18, G[1] * 0.82 + dc[1] * 0.18, G[2] * 0.82 + dc[2] * 0.18];
+          k = 0.16 + 0.24 * h;
           break;
         case ROLE.RIBBON:
           c = G;
@@ -1420,10 +1654,17 @@ export class AxonView extends ItemView {
           k = 0.12 + 0.28 * h * h;
         }
       }
+      if (mono && L.dustRole[i] !== ROLE.RECORD && L.dustRole[i] !== ROLE.BONE) {
+        // Quelques grains plus clairs, comme des étincelles.
+        const sp = hash01(i, 133) < 0.05 ? 0.5 : 0;
+        c = [mono[0] * (1 - sp) + sp, mono[1] * (1 - sp) + sp, mono[2] * (1 - sp) + sp];
+      }
       out[i * 3] = c[0] * k;
       out[i * 3 + 1] = c[1] * k;
       out[i * 3 + 2] = c[2] * k;
     }
+    this.colorShell();
+    this.colorSkeleton();
   }
 
   recolor() {
@@ -1719,7 +1960,10 @@ export class AxonView extends ItemView {
   colorClouds() {
     if (!this.cloudGroup) return;
     const pal = this.palette();
-    this.cloudGroup.children.forEach((sp, i) => sp.material.color.setRGB(...samplePalette(pal, (i * GOLDEN + 0.2) % 1)));
+    const mono = this.colorModeEff() === 'mono' ? this.monoBase() : null;
+    this.cloudGroup.children.forEach((sp, i) =>
+      sp.material.color.setRGB(...(mono ? mono.map((v) => v * (0.7 + 0.3 * hash01(i, 806))) : samplePalette(pal, (i * GOLDEN + 0.2) % 1)))
+    );
   }
 
   updateClouds(dt) {
@@ -1756,6 +2000,11 @@ export class AxonView extends ItemView {
     this.arp = null;
     this.btnArp.classList.remove('is-on');
     this.btnArp.title = t('larpTitle');
+    if (this.arpPal) {
+      // On rend ses couleurs habituelles à la vue.
+      this.arpPal = null;
+      this.recolor();
+    }
   }
 
   updateArp(now) {
@@ -1763,7 +2012,23 @@ export class AxonView extends ItemView {
     if (!a || now < a.next) return;
     a.idx = (a.idx + 1) % VIEWS.length;
     a.next = now + 2000;
-    this.setView(VIEWS[a.idx].key, { arp: true });
+    if (this.settings.larpColors) {
+      // Une teinte unique par forme, qui change à chaque étape (rouge, vert, bleu…).
+      a.hue = ((a.hue == null ? -1 : a.hue) + 1) % LARP_PALETTES.length;
+      this.arpPal = LARP_PALETTES[a.hue];
+      this.computeNoteColors(); // la transition repart des nouvelles couleurs
+      this.setView(VIEWS[a.idx].key, { arp: true });
+      this.updateLinkColors();
+      this.colorClouds();
+      this.colorShell();
+    } else {
+      if (this.arpPal) {
+        this.arpPal = null;
+        this.computeNoteColors();
+        this.updateLinkColors();
+      }
+      this.setView(VIEWS[a.idx].key, { arp: true });
+    }
   }
 
   updateAnswer() {
@@ -2507,14 +2772,49 @@ export class AxonView extends ItemView {
     this.dustMat.uniforms.uAlpha.value *= 0.55 + 0.45 * s.dust;
     this.dustMat.uniforms.uBody.value = smoothstep(0.06, 0.7, this.anat) * this.scaffoldVal;
     this.dustMat.uniforms.uRecord.value = this.recAlpha;
+    // Lueur autour des notes : mêmes points, trois fois plus grands, très transparents.
+    const glow = clamp(s.glow == null ? 0.5 : s.glow, 0, 1);
+    const gu = this.glowMat.uniforms;
+    this.glowPoints.visible = glow > 0.01 && this.notesAlpha > 0.01;
+    for (const k of ['uTime', 'uBreath', 'uDrift', 'uScale', 'uSearch']) gu[k].value = this.noteMat.uniforms[k].value;
+    gu.uSize.value = this.noteMat.uniforms.uSize.value * 3.4;
+    gu.uAlpha.value = this.noteMat.uniforms.uAlpha.value * 0.16 * glow;
+    // Enveloppe en fil de fer : seulement sur le cerveau, quand le corps est visible, jamais pendant une transition.
+    const wantShell = this.view === 'brain' && !this.tween ? 1 : 0;
+    this.shellAlpha += (wantShell - this.shellAlpha) * Math.min(1, dt * (wantShell ? 2.5 : 8));
+    if (this.shellLines) {
+      this.shellMat.opacity = 0.085 * this.shellAlpha * smoothstep(0.06, 0.7, this.anat) * this.scaffoldVal * Math.min(1.2, s.brightness);
+      this.shellLines.visible = this.shellMat.opacity > 0.002;
+    }
+    // Squelette et nerfs : curseur Squelette, avec le corps (Body) et sur la forme Cerveau seulement.
+    this.skelVal = this.skelVal == null ? clamp(s.skeleton == null ? 0.7 : s.skeleton, 0, 1) : this.skelVal;
+    this.skelVal += (clamp(s.skeleton == null ? 0.7 : s.skeleton, 0, 1) - this.skelVal) * kf;
+    const skelBody = smoothstep(0.06, 0.7, this.anat) * this.skelVal;
+    this.dustMat.uniforms.uSkel.value = skelBody;
+    if (this.skelLines) {
+      this.skelMat.opacity = 0.22 * this.shellAlpha * skelBody * Math.min(1.2, s.brightness);
+      this.skelLines.visible = this.skelMat.opacity > 0.003;
+    }
     this.linkMat.opacity =
       this.intro || !s.links
         ? 0
         : s.linkOpacity * 0.22 * this.linkFactor * (1 - 0.85 * this.searchVal) * Math.min(1, s.brightness) * this.notesAlpha;
     this.linkLines.visible = this.linkMat.opacity > 0.002;
-    if (moved && this.linkLines.visible) this.updateLinkPositions();
+    // Fibres lumineuses : seulement sur le cerveau, une fois la forme posée.
+    const wantFib = this.view === 'brain' && !this.tween && !this.intro && s.links ? 1 : 0;
+    this.fiberAlpha = this.fiberAlpha || 0;
+    this.fiberAlpha += (wantFib - this.fiberAlpha) * Math.min(1, dt * (wantFib ? 2 : 8));
+    if (this.fiberLines) {
+      // Plusieurs teintes qui s'additionnent virent vite au blanc : plus discret qu'en une seule couleur.
+      const fibBase = this.colorModeEff() === 'mono' ? 0.13 : 0.05;
+      this.fiberMat.opacity =
+        fibBase * this.fiberAlpha * Math.min(1.2, s.brightness) * this.notesAlpha * (1 - 0.85 * this.searchVal) * (0.4 + 0.6 * clamp(s.linkOpacity * 2.5, 0, 1));
+      this.fiberLines.visible = this.fiberMat.opacity > 0.003;
+    }
+    const linesShown = this.linkLines.visible || (this.fiberLines && this.fiberLines.visible);
+    if (moved && linesShown) this.updateLinkPositions();
     else if (moved) this.linksStale = true;
-    if (this.linkLines.visible && this.linksStale) {
+    if (linesShown && this.linksStale) {
       this.updateLinkPositions();
       this.linksStale = false;
     }
@@ -2542,8 +2842,8 @@ export class AxonView extends ItemView {
     if (this.relayoutSoon) this.relayoutSoon.cancel();
     if (this.ro) this.ro.disconnect();
     if (this.controls) this.controls.dispose();
-    for (const o of [this.notePoints, this.dustPoints, this.linkLines, this.ring, this.beads]) if (o) o.geometry.dispose();
-    for (const m of [this.noteMat, this.dustMat, this.linkMat, this.ringMat, this.beadMat]) if (m) m.dispose();
+    for (const o of [this.notePoints, this.dustPoints, this.linkLines, this.ring, this.beads, this.shellLines, this.fiberLines, this.skelLines]) if (o) o.geometry.dispose();
+    for (const m of [this.noteMat, this.dustMat, this.linkMat, this.ringMat, this.beadMat, this.glowMat, this.shellMat, this.fiberMat, this.skelMat]) if (m) m.dispose();
     if (this.cloudTex) this.cloudTex.dispose();
     if (this.cloudGroup) for (const c of this.cloudGroup.children) c.material.dispose();
     if (this.renderer) {

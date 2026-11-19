@@ -1,9 +1,9 @@
 {
   "id": "axon-mind",
   "name": "Axon Mind",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "minAppVersion": "1.5.0",
-  "description": "Your whole vault as a 3D particle cloud: a brain on a glowing spine of your notes, molecule, grid, curve, wheel, flow and lifelines, with animated transitions, writing history, stats, focus mode and a LARP mode for filming.",
+  "description": "Your whole vault as a 3D particle cloud: a brain with a glowing skeleton and nerves, nebula molecule, microscope cells, grid, curve, wheel, flow and lifelines, with animated transitions, writing history, stats, focus mode and a LARP mode for filming.",
   "author": "Yoxo",
   "isDesktopOnly": false
 }

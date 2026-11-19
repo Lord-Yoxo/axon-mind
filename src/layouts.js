@@ -13,6 +13,7 @@ export const VIEWS = [
   { key: 'wheel', label: 'Roue', rot: 'sway' },
   { key: 'flow', label: 'Flux', rot: 'sway' },
   { key: 'life', label: 'Lignes de vie', rot: 'sway' },
+  { key: 'micro', label: 'Microscope', rot: 'spinZ' },
 ];
 
 export const ROLE = {
@@ -38,9 +39,13 @@ export const ROLE = {
   FILL: 20,
   RINGFILL: 21,
   RECORD: 22,
+  BONE: 23,
+  NERVE: 24,
 };
 /** Rôles qui forment le corps (la « silhouette », masquée quand le curseur Anatomie est au minimum). */
 export const BODY_ROLES = new Set([ROLE.SPINE, ROLE.RIB, ROLE.SKIN, ROLE.NECK]);
+/** Squelette et nerfs (curseur Squelette). */
+export const SKEL_ROLES = new Set([ROLE.BONE, ROLE.NERVE]);
 
 const GA = Math.PI * (3 - Math.sqrt(5)); // angle d'or
 
@@ -58,6 +63,8 @@ export function computeLayout(key, model, D, aspect, opts = {}) {
       return layoutFlow(model, D, aspect);
     case 'life':
       return layoutLife(model, D, aspect);
+    case 'micro':
+      return layoutMicro(model, D);
     default:
       return layoutBrain(model, D);
   }
@@ -332,17 +339,19 @@ function layoutBrain(model, D) {
 
   // Corps : profil (demi-largeur) en fonction de la hauteur.
   const neckTop = -B * 0.45;
-  const neckBot = -60;
-  const shoulder = -84;
+  const neckBot = -46;
+  const shoulder = -90;
   const bottom = -262;
+  // Silhouette en buste : cou court, larges épaules qui s'évasent en douceur (en cloche), torse qui s'affine.
   const bodyR = (y) => {
-    if (y >= neckBot) return 9.5 + 3 * smoothstep(neckBot + 20, neckTop, y);
+    if (y >= neckBot) return 9.5 + 3 * smoothstep(neckBot + 16, neckTop, y);
     if (y >= shoulder) {
       const t = (neckBot - y) / (neckBot - shoulder);
-      return 9.5 + 56.5 * t * t;
+      const s = t * t * t * (t * (t * 6 - 15) + 10); // courbe en S très douce
+      return 9.5 + 66 * s;
     }
     const t = clamp((shoulder - y) / (shoulder - bottom), 0, 1);
-    return Math.max(3, 66 + 30 * Math.sin(t * Math.PI * 0.75) - 90 * t ** 4);
+    return Math.max(3, 75.5 + 10 * Math.sin(t * Math.PI * 0.6) - 84 * t ** 3.2);
   };
   const DEPTH = 0.42;
   const G = groups.length;
@@ -353,14 +362,15 @@ function layoutBrain(model, D) {
   const N = notes.length;
   const shares = [
     [ROLE.FILAMENT, 0.08],
-    [ROLE.RECORD, N ? 0.38 : 0],
+    [ROLE.RECORD, N ? 0.37 : 0],
     [ROLE.SPINE, 0.03],
-    [ROLE.RIB, 0.11],
-    [ROLE.SKIN, 0.19],
+    [ROLE.BONE, 0.08],
+    [ROLE.NERVE, 0.06],
+    [ROLE.SKIN, 0.14],
     [ROLE.NECK, 0.04],
     [ROLE.CEREBELLUM, 0.07],
     [ROLE.STEM, 0.03],
-    [ROLE.HAZE, 0.07],
+    [ROLE.HAZE, 0.1],
   ];
   const cdf = [];
   let acc = 0;
@@ -387,6 +397,183 @@ function layoutBrain(model, D) {
     const z = -C * 0.18 - 4 + 10 * Math.sin(s * Math.PI * 1.7 - 0.4) * Math.min(1, s * 3);
     return [x, y, z];
   };
+  const spineAt = (y) => cordAt(clamp((y - cordTop) / (cordBot - cordTop), 0, 1));
+
+  // ---- Squelette et nerfs : des polylignes (os et nerfs), dessinées en traits fins et semées de grains.
+  // Repère : x vers les côtés, y vers le haut, z vers l'avant (le dos est en z négatif).
+  const bones = [];
+  const nerves = [];
+  let rk = 1;
+  const rnd = () => hash01(rk++, 977);
+  const inner = (y, k) => bodyR(y) * k;
+  const around = (ang, y, k) => {
+    const r = inner(y, k);
+    return [Math.sin(ang) * r, y, -Math.cos(ang) * r * DEPTH];
+  };
+  const shoulderTip = (s) => [s * inner(shoulder + 8, 0.92), shoulder + 8, -2];
+  // Côtes : partent de la colonne, s'enroulent sur les côtés et descendent vers le sternum.
+  const RIBS = 11;
+  const ribPaths = [];
+  for (let i = 0; i < RIBS; i++) {
+    const yb = shoulder - 3 - i * 11;
+    const reach = i < 7 ? Math.PI - 0.32 : Math.PI * (0.78 - (i - 7) * 0.09); // côtes flottantes plus courtes
+    for (const s of [-1, 1]) {
+      const pts = [spineAt(yb)];
+      const n = 16;
+      for (let k = 1; k <= n; k++) {
+        const u = k / n;
+        const ang = 0.3 + (reach - 0.3) * u;
+        const y = yb - 15 * Math.pow(u, 1.3);
+        const p = around(ang, y, 0.84);
+        p[0] *= s;
+        pts.push(p);
+      }
+      bones.push(pts);
+      ribPaths.push(pts);
+    }
+  }
+  // Sternum, clavicules, omoplates, bassin.
+  const zf = (y) => inner(y, 0.84) * DEPTH;
+  const sternum = [];
+  for (let y = shoulder - 1; y >= shoulder - 66; y -= 5) sternum.push([0, y, zf(y)]);
+  bones.push(sternum);
+  for (const s of [-1, 1]) {
+    const a = [0, shoulder - 1, zf(shoulder - 1)];
+    const b = shoulderTip(s);
+    const cl = [];
+    for (let k = 0; k <= 10; k++) {
+      const u = k / 10;
+      cl.push([a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u + 3 * Math.sin(u * Math.PI), a[2] + (b[2] - a[2]) * u + 2 * Math.sin(u * TAU)]);
+    }
+    bones.push(cl);
+    const zb = (y) => -inner(y, 0.8) * DEPTH;
+    const t1 = [s * 13, shoulder - 6];
+    const t2 = [s * inner(shoulder - 4, 0.66), shoulder - 4];
+    const t3 = [s * 22, shoulder - 54];
+    const tri = [t1, t2, t3, t1];
+    const sc = [];
+    for (let e = 0; e < 3; e++) {
+      for (let k = 0; k < 8; k++) {
+        const u = k / 8;
+        const x = tri[e][0] + (tri[e + 1][0] - tri[e][0]) * u;
+        const y = tri[e][1] + (tri[e + 1][1] - tri[e][1]) * u;
+        sc.push([x, y, zb(y)]);
+      }
+    }
+    sc.push([t1[0], t1[1], zb(t1[1])]);
+    bones.push(sc);
+    // Bassin : une aile de chaque côté, du dos vers l'avant.
+    const il = [];
+    for (let k = 0; k <= 12; k++) {
+      const u = k / 12;
+      const ang = 0.35 + 2.2 * u;
+      const y = -226 - 8 * Math.sin(u * Math.PI) - 10 * u;
+      const p = around(ang, y, 0.9);
+      p[0] *= s;
+      il.push(p);
+    }
+    bones.push(il);
+  }
+  // Nerfs : petites branches qui partent d'un tronc, vers l'extérieur et vers le bas, toujours dans le corps.
+  const norm = (v) => {
+    const l = Math.hypot(v[0], v[1], v[2]) || 1;
+    return [v[0] / l, v[1] / l, v[2] / l];
+  };
+  const keepIn = (p) => {
+    const rm = inner(p[1], 0.95);
+    const r = Math.hypot(p[0], p[2] / DEPTH);
+    if (r > rm) {
+      p[0] *= rm / r;
+      p[2] *= rm / r;
+    }
+    return p;
+  };
+  const branch = (p0, dir, len, depth, steps) => {
+    const pts = [p0];
+    let p = p0.slice();
+    let d = dir.slice();
+    const st = len / steps;
+    for (let k = 0; k < steps; k++) {
+      d = norm([d[0] + (rnd() - 0.5) * 0.45, d[1] + (rnd() - 0.5) * 0.3, d[2] + (rnd() - 0.5) * 0.35]);
+      p = keepIn([p[0] + d[0] * st, p[1] + d[1] * st, p[2] + d[2] * st]);
+      pts.push(p);
+      if (depth > 0 && k > 0 && rnd() < 0.3) {
+        const sx = Math.sign(d[0]) || 1;
+        branch(p, norm([d[0] + sx * 0.5 * rnd(), d[1] - 0.6 * rnd(), d[2] + (rnd() - 0.5) * 0.8]), len * (0.3 + 0.25 * rnd()), depth - 1, Math.max(3, Math.round(steps * 0.5)));
+      }
+    }
+    nerves.push(pts);
+  };
+  /** Nerf qui suit un chemin donné (avec un léger tremblé), et lance des ramifications. */
+  const follow = (path, depth, jit = 1.2) => {
+    const pts = path.map((q) => keepIn([q[0] + (rnd() - 0.5) * jit, q[1] + (rnd() - 0.5) * jit, q[2] + (rnd() - 0.5) * jit]));
+    nerves.push(pts);
+    for (let k = 2; k < pts.length - 1; k++) {
+      if (depth > 0 && rnd() < 0.18) {
+        const a = pts[k];
+        const b = pts[k + 1];
+        const sx = Math.sign(a[0]) || 1;
+        branch(a, norm([b[0] - a[0] + sx * 2 * rnd(), b[1] - a[1] - 3 * rnd(), b[2] - a[2]]), 10 + 14 * rnd(), depth - 1, 5);
+      }
+    }
+  };
+  for (const s of [-1, 1]) {
+    // Plexus des épaules : plusieurs racines du cou qui se rejoignent vers l'épaule, puis descendent le long du flanc.
+    const tip = shoulderTip(s);
+    for (let r = 0; r < 4; r++) {
+      const a = spineAt(-50 - r * 8);
+      const path = [];
+      for (let k = 0; k <= 10; k++) {
+        const u = k / 10;
+        path.push([a[0] + (tip[0] - a[0]) * u, a[1] + (tip[1] - 6 - a[1]) * u - 6 * Math.sin(u * Math.PI), a[2] + (tip[2] - a[2]) * u + 4 * Math.sin(u * Math.PI)]);
+      }
+      follow(path, 1, 1.4);
+    }
+    const arm = [];
+    for (let y = tip[1]; y >= -208; y -= 6) arm.push([s * inner(y, 0.9), y, 3 + 2 * Math.sin(y * 0.11)]);
+    follow(arm, 2, 1.6);
+    // Bas du dos : de gros nerfs qui descendent vers les jambes.
+    for (let r = 0; r < 3; r++) {
+      const a = spineAt(-200 - r * 11);
+      branch(a, norm([s * 0.5, -1, 0.15]), 48 + 10 * r, 2, 9);
+    }
+  }
+  // Nerfs le long des côtes (juste en dessous de chaque côte).
+  for (const rp of ribPaths) follow(rp.map((q) => [q[0] * 0.97, q[1] - 2.6, q[2] * 0.97]), 1, 0.9);
+
+  // Segments (pour les traits) et longueurs cumulées (pour semer les grains uniformément).
+  const segs = { bone: [], nerve: [] };
+  for (const [kind, list] of [['bone', bones], ['nerve', nerves]]) {
+    for (const pts of list) for (let k = 0; k + 1 < pts.length; k++) segs[kind].push([...pts[k], ...pts[k + 1]]);
+  }
+  const cum = (list) => {
+    const c = new Float64Array(list.length);
+    let a = 0;
+    list.forEach((sg, k) => {
+      a += Math.hypot(sg[3] - sg[0], sg[4] - sg[1], sg[5] - sg[2]) + 1e-6;
+      c[k] = a;
+    });
+    return c;
+  };
+  const cumBone = cum(segs.bone);
+  const cumNerve = cum(segs.nerve);
+  const allSegs = segs.bone.concat(segs.nerve);
+  L.skelLines = new Float32Array(allSegs.length * 6);
+  L.skelKind = new Uint8Array(allSegs.length * 2); // 0 = os, 1 = nerf (par sommet)
+  allSegs.forEach((sg, k) => {
+    L.skelLines.set(sg, k * 6);
+    L.skelKind[k * 2] = L.skelKind[k * 2 + 1] = k < segs.bone.length ? 0 : 1;
+  });
+  const onSeg = (list, c, i, salt) => {
+    const sg = list[pickCdf(c, hash01(i, salt))];
+    const u = hash01(i, salt + 1);
+    const j = 0.7;
+    return [
+      sg[0] + (sg[3] - sg[0]) * u + (hash01(i, salt + 2) - 0.5) * j,
+      sg[1] + (sg[4] - sg[1]) * u + (hash01(i, salt + 3) - 0.5) * j,
+      sg[2] + (sg[5] - sg[2]) * u + (hash01(i, salt + 4) - 0.5) * j,
+    ];
+  };
 
   for (let i = 0; i < D; i++) {
     const o = i * 3;
@@ -412,6 +599,24 @@ function layoutBrain(model, D) {
         z = c0[2] + Math.sin(a) * rr * 0.85;
         L.dustOwner[i] = order[r];
         L.dustT[i] = tt;
+        break;
+      }
+      case ROLE.BONE: {
+        if (!segs.bone.length) {
+          hazeSphere(i, L.dustPos, o);
+          L.dustRole[i] = ROLE.HAZE;
+          continue;
+        }
+        [x, y, z] = onSeg(segs.bone, cumBone, i, 70);
+        break;
+      }
+      case ROLE.NERVE: {
+        if (!segs.nerve.length) {
+          hazeSphere(i, L.dustPos, o);
+          L.dustRole[i] = ROLE.HAZE;
+          continue;
+        }
+        [x, y, z] = onSeg(segs.nerve, cumNerve, i, 80);
         break;
       }
       case ROLE.FILAMENT: {
@@ -511,12 +716,37 @@ function layoutBrain(model, D) {
     L.dustRole[i] = role;
   }
 
+  // Enveloppe en fil de fer : anneaux horizontaux et méridiens qui suivent la silhouette du corps.
+  const seg = [];
+  const RING = 64;
+  for (let y = neckTop - 4; y > bottom + 6; y -= 8.5) {
+    const r = bodyR(y);
+    for (let k = 0; k < RING; k++) {
+      const a0 = (k / RING) * TAU;
+      const a1 = ((k + 1) / RING) * TAU;
+      seg.push(Math.cos(a0) * r, y, Math.sin(a0) * r * DEPTH, Math.cos(a1) * r, y, Math.sin(a1) * r * DEPTH);
+    }
+  }
+  const MER = 36;
+  for (let k = 0; k < MER; k++) {
+    const a = (k / MER) * TAU;
+    for (let y = neckTop - 4; y > bottom + 6; y -= 5) {
+      const y2 = Math.max(bottom + 6, y - 5);
+      const r1 = bodyR(y);
+      const r2 = bodyR(y2);
+      seg.push(Math.cos(a) * r1, y, Math.sin(a) * r1 * DEPTH, Math.cos(a) * r2, y2, Math.sin(a) * r2 * DEPTH);
+    }
+  }
+  L.shellLines = new Float32Array(seg);
+
   // Cadrage : le cerveau en haut, la moelle file vers le bas de l'écran (comme la vidéo).
   L.frame = { center: [0, -92, 0], width: 190, height: 258, depth: 70 };
   L.frameNear = { center: [0, 0, 0], width: 108, height: 86, depth: 90 };
   L.body = { top: B, bottom };
   L.camDir = [0, 0.06, 1];
-  L.linkFactor = 0.22;
+  // Liens discrets : des dizaines de milliers de traits superposés dans un petit cerveau le blanchissent vite.
+  // Les fibres lumineuses (une sélection de liens) font le travail des filaments.
+  L.linkFactor = 0.25;
   L.sizeMul = 0.6;
   L.drift = 0.25;
   L.question = t('q.brain');
@@ -525,23 +755,27 @@ function layoutBrain(model, D) {
 }
 
 // --------------------------------------------------------------- 2. Molécule
-function shellsFor(n) {
-  let K = 0;
-  let cap = 0;
-  while (cap < n) {
-    K++;
-    cap += 3 * K * K;
-  }
-  return Math.max(1, K);
+/** Point 3D tiré d'une loi normale (Box-Muller), borné pour éviter les points perdus au loin. */
+function gauss3(seed, salt, cap = 2.4) {
+  const u1 = Math.max(1e-6, hash01(seed, salt));
+  const u2 = hash01(seed, salt + 1);
+  const u3 = Math.max(1e-6, hash01(seed, salt + 2));
+  const u4 = hash01(seed, salt + 3);
+  const r1 = Math.sqrt(-2 * Math.log(u1));
+  const r2 = Math.sqrt(-2 * Math.log(u3));
+  const v = [r1 * Math.cos(TAU * u2), r1 * Math.sin(TAU * u2), r2 * Math.cos(TAU * u4)];
+  const m = Math.hypot(v[0], v[1], v[2]);
+  if (m > cap) for (let k = 0; k < 3; k++) v[k] *= cap / m;
+  return v;
 }
-const SHELL0 = 4.5;
-const SHELL_DR = 3.6;
 
 function layoutMolecule(model, D) {
   const L = base('molecule', model, D);
   const { notes, groups, groupLinks } = model;
   const G = groups.length;
-  const R = groups.map((g) => SHELL0 + SHELL_DR * shellsFor(g.notes.length) + 2.5);
+  // Chaque dossier est un amas nébuleux : un nuage dense (écart-type SIG), son encombrement R.
+  const SIG = groups.map((g) => 2.4 + 1.75 * Math.cbrt(g.notes.length));
+  const R = SIG.map((s) => s * 2.3 + 2);
 
   // Position des atomes : petite simulation de forces (liens entre dossiers = ressorts).
   const P = new Float64Array(G * 3);
@@ -590,7 +824,7 @@ function layoutMolecule(model, D) {
       const dy = P[j * 3 + 1] - P[i * 3 + 1];
       const dz = P[j * 3 + 2] - P[i * 3 + 2];
       const d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.01;
-      const rest = R[i] + R[j] + 34;
+      const rest = (R[i] + R[j]) * 1.3 + 40;
       if (d <= rest) continue;
       const f = 0.004 * w * (d - rest);
       F[i * 3] += (dx / d) * f;
@@ -621,7 +855,7 @@ function layoutMolecule(model, D) {
         const dy = P[j * 3 + 1] - P[i * 3 + 1];
         const dz = P[j * 3 + 2] - P[i * 3 + 2];
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 1e-6;
-        const minD = R[i] + R[j] + 16;
+        const minD = (R[i] + R[j]) * 1.35 + 18; // du noir entre les amas, comme des nébuleuses séparées
         if (d < minD) {
           const push = (minD - d) / 2 / d;
           P[i * 3] -= dx * push;
@@ -656,31 +890,27 @@ function layoutMolecule(model, D) {
     extY = Math.max(extY, Math.abs(P[i * 3 + 1]) + R[i]);
   }
 
-  // Notes en couches autour du noyau (les plus liées au centre). Noms encadrés comme dans la vidéo.
+  // Notes en nuage (loi normale) : les plus liées au cœur, les autres de plus en plus loin.
+  // Chaque amas a sa propre forme (un peu aplati ou étiré) et sa propre orientation. Noms encadrés.
   const maxN = Math.max(1, ...groups.map((g) => g.notes.length));
   const named = new Set([...groups].sort((a, b) => b.notes.length - a.notes.length).slice(0, 20).map((g) => g.idx));
+  const shape = groups.map((g, gi) => ({
+    ax: [1, 0.68 + 0.5 * hash01(gi, 54), 0.78 + 0.42 * hash01(gi, 55)],
+    rx: TAU * hash01(gi, 56),
+    ry: TAU * hash01(gi, 57),
+  }));
   groups.forEach((g, gi) => {
     const list = [...g.notes].sort((a, b) => notes[b].deg - notes[a].deg || a - b);
-    let k = 0;
-    let shell = 1;
-    while (k < list.length) {
-      const cap = Math.min(3 * shell * shell, list.length - k);
-      const rad = SHELL0 + SHELL_DR * shell;
-      const rx = TAU * hash01(gi * 31 + shell, 51);
-      const ry = TAU * hash01(gi * 31 + shell, 52);
-      for (let j = 0; j < cap; j++, k++) {
-        const y = cap === 1 ? 0 : 1 - (2 * (j + 0.5)) / cap;
-        const rr = Math.sqrt(1 - y * y);
-        const a = j * GA;
-        const v = rotXY(Math.cos(a) * rr, y, Math.sin(a) * rr, rx, ry);
-        const ni = list[k];
-        const jr = rad * (0.9 + 0.2 * hash01(notes[ni].seed, 53));
-        L.pos[ni * 3] = P[gi * 3] + v[0] * jr;
-        L.pos[ni * 3 + 1] = P[gi * 3 + 1] + v[1] * jr;
-        L.pos[ni * 3 + 2] = P[gi * 3 + 2] + v[2] * jr;
-      }
-      shell++;
-    }
+    const n = list.length;
+    const sh = shape[gi];
+    list.forEach((ni, k) => {
+      const sc = SIG[gi] * (0.42 + 0.78 * Math.sqrt((k + 0.5) / n));
+      const q = gauss3(notes[ni].seed, 51, 2.3);
+      const v = rotXY(q[0] * sh.ax[0], q[1] * sh.ax[1], q[2] * sh.ax[2], sh.rx, sh.ry);
+      L.pos[ni * 3] = P[gi * 3] + v[0] * sc;
+      L.pos[ni * 3 + 1] = P[gi * 3 + 1] + v[1] * sc;
+      L.pos[ni * 3 + 2] = P[gi * 3 + 2] + v[2] * sc;
+    });
     if (named.has(gi))
       L.labels.push({
         text: g.short,
@@ -695,33 +925,33 @@ function layoutMolecule(model, D) {
       });
   });
 
-  // Poussière : noyaux lumineux, orbites d'électrons, étoiles.
+  // Poussière : un cœur brillant et une brume colorée autour de chaque amas, des étoiles entre les amas,
+  // et un fond d'étoiles lointaines.
   const cdf = [];
   let acc = 0;
   for (const g of groups) cdf.push((acc += Math.sqrt(g.notes.length)));
   for (let i = 0; i < D; i++) {
     const o = i * 3;
     const r = hash01(i, 61);
-    if (r < 0.82 && G) {
+    if (r < 0.76 && G) {
       const gi = pickCdf(cdf, hash01(i, 62));
-      const n = groups[gi].notes.length;
+      const sh = shape[gi];
       L.dustGroup[i] = gi;
-      if (r < 0.46) {
-        const b = ballPoint(i, 63, 2 + Math.cbrt(n) * 0.9);
-        L.dustPos[o] = P[gi * 3] + b[0];
-        L.dustPos[o + 1] = P[gi * 3 + 1] + b[1];
-        L.dustPos[o + 2] = P[gi * 3 + 2] + b[2];
-        L.dustRole[i] = ROLE.NUCLEUS;
-      } else {
-        const ring = Math.floor(hash01(i, 66) * 3);
-        const th = TAU * hash01(i, 67);
-        const rad = R[gi] - 1;
-        const v = rotXY(Math.cos(th) * rad, 0, Math.sin(th) * rad, 1.15, (ring * TAU) / 3 + hash01(gi, 68) * TAU);
-        L.dustPos[o] = P[gi * 3] + v[0];
-        L.dustPos[o + 1] = P[gi * 3 + 1] + v[1];
-        L.dustPos[o + 2] = P[gi * 3 + 2] + v[2];
-        L.dustRole[i] = ROLE.ORBIT;
-      }
+      const core = r < 0.4;
+      const q = gauss3(i, 63, core ? 2.2 : 2.4);
+      const sc = SIG[gi] * (core ? 0.55 : 1.2);
+      const v = rotXY(q[0] * sh.ax[0], q[1] * sh.ax[1], q[2] * sh.ax[2], sh.rx, sh.ry);
+      L.dustPos[o] = P[gi * 3] + v[0] * sc;
+      L.dustPos[o + 1] = P[gi * 3 + 1] + v[1] * sc;
+      L.dustPos[o + 2] = P[gi * 3 + 2] + v[2] * sc;
+      L.dustRole[i] = core ? ROLE.NUCLEUS : ROLE.ORBIT;
+    } else if (r < 0.86 && G) {
+      // Champ d'étoiles entre les amas.
+      const b = ballPoint(i, 69, 1);
+      L.dustPos[o] = b[0] * ext * 1.15;
+      L.dustPos[o + 1] = b[1] * extY * 1.25;
+      L.dustPos[o + 2] = b[2] * ext * 1.15;
+      L.dustRole[i] = ROLE.HAZE;
     } else {
       hazeSphere(i, L.dustPos, o);
       L.dustRole[i] = ROLE.HAZE;
@@ -730,8 +960,8 @@ function layoutMolecule(model, D) {
 
   L.frame = { center: [0, 0, 0], width: ext * 2, height: extY * 2 + 10, depth: ext * 1.4 };
   L.camDir = [0.12, 0.22, 1];
-  L.linkFactor = 0.55;
-  L.sizeMul = 1.25;
+  L.linkFactor = 0.4;
+  L.sizeMul = 1.05;
   L.drift = 0.3;
   L.question = t('q.molecule');
   L.answer = topPair
@@ -741,6 +971,135 @@ function layoutMolecule(model, D) {
 }
 
 // ------------------------------------------------------------------ 3. Grille
+// ------------------------------------------------------------- 8. Microscope
+// Chaque dossier est une cellule (une sphère remplie de ses notes, avec sa membrane et son noyau),
+// rangée en tournesol autour de la plus grosse, dans une boîte de Petri vue de biais qui tourne.
+function layoutMicro(model, D) {
+  const L = base('micro', model, D);
+  const { notes, groups } = model;
+  const G = groups.length;
+  const rad = groups.map((g) => 3.4 + 2.3 * Math.cbrt(g.notes.length));
+  const order = [...groups].sort((a, b) => b.notes.length - a.notes.length || a.idx - b.idx).map((g) => g.idx);
+  // Placement en spirale d'or (les plus grosses au centre), puis on écarte les cellules qui se touchent.
+  const P = new Float64Array(G * 2);
+  let area = 0;
+  order.forEach((gi, k) => {
+    const r = k === 0 ? 0 : 1.12 * Math.sqrt(area);
+    const a = k * GA;
+    P[gi * 2] = Math.cos(a) * r;
+    P[gi * 2 + 1] = Math.sin(a) * r;
+    area += rad[gi] * rad[gi] * 1.35;
+  });
+  for (let it = 0; it < 220; it++) {
+    for (let i = 0; i < G; i++) {
+      for (let j = i + 1; j < G; j++) {
+        const dx = P[j * 2] - P[i * 2];
+        const dy = P[j * 2 + 1] - P[i * 2 + 1];
+        const d = Math.hypot(dx, dy) + 1e-6;
+        const minD = rad[i] + rad[j] + 2.6;
+        if (d < minD) {
+          const push = (minD - d) / 2 / d;
+          P[i * 2] -= dx * push;
+          P[i * 2 + 1] -= dy * push;
+          P[j * 2] += dx * push;
+          P[j * 2 + 1] += dy * push;
+        }
+      }
+    }
+    for (let i = 0; i < G; i++) {
+      P[i * 2] *= 0.992; // légère gravité vers le centre : un disque bien rempli
+      P[i * 2 + 1] *= 0.992;
+    }
+  }
+  let ext = 1;
+  for (let i = 0; i < G; i++) ext = Math.max(ext, Math.hypot(P[i * 2], P[i * 2 + 1]) + rad[i]);
+  const dish = ext + 9;
+  const cz = (gi) => (hash01(gi, 801) - 0.5) * rad[gi] * 0.5; // un peu de relief
+
+  // Notes : réparties uniformément dans le volume de leur cellule (une bille pleine de points).
+  groups.forEach((g, gi) => {
+    for (const ni of g.notes) {
+      const s = notes[ni].seed;
+      const u = 2 * hash01(s, 811) - 1;
+      const a = TAU * hash01(s, 812);
+      const rr = rad[gi] * 0.9 * Math.cbrt(hash01(s, 813));
+      const q = Math.sqrt(1 - u * u);
+      L.pos[ni * 3] = P[gi * 2] + Math.cos(a) * q * rr;
+      L.pos[ni * 3 + 1] = P[gi * 2 + 1] + u * rr;
+      L.pos[ni * 3 + 2] = cz(gi) + Math.sin(a) * q * rr;
+    }
+  });
+
+  // Poussière : membrane de chaque cellule, noyau au centre, bord de la boîte, et quelques débris flottants.
+  const cdfA = [];
+  let accA = 0;
+  for (let gi = 0; gi < G; gi++) cdfA.push((accA += rad[gi] * rad[gi]));
+  for (let i = 0; i < D; i++) {
+    const o = i * 3;
+    const r = hash01(i, 821);
+    if (G && r < 0.78) {
+      const gi = pickCdf(cdfA, hash01(i, 822));
+      L.dustGroup[i] = gi;
+      const nucleus = r < 0.16;
+      const u = 2 * hash01(i, 823) - 1;
+      const a = TAU * hash01(i, 824);
+      const q = Math.sqrt(1 - u * u);
+      const rr = nucleus ? rad[gi] * 0.24 * Math.cbrt(hash01(i, 825)) : rad[gi] * (0.97 + 0.06 * hash01(i, 825));
+      L.dustPos[o] = P[gi * 2] + Math.cos(a) * q * rr;
+      L.dustPos[o + 1] = P[gi * 2 + 1] + u * rr;
+      L.dustPos[o + 2] = cz(gi) + Math.sin(a) * q * rr;
+      L.dustRole[i] = nucleus ? ROLE.NUCLEUS : ROLE.RINGFILL; // membrane bien visible
+    } else if (r < 0.88) {
+      // Bord de la boîte de Petri : un anneau fin.
+      const a = TAU * hash01(i, 826);
+      const rr = dish + (hash01(i, 827) - 0.5) * 1.6;
+      L.dustPos[o] = Math.cos(a) * rr;
+      L.dustPos[o + 1] = Math.sin(a) * rr;
+      L.dustPos[o + 2] = (hash01(i, 828) - 0.5) * 2;
+      L.dustRole[i] = ROLE.RIM;
+    } else if (r < 0.95) {
+      // Débris en suspension dans la boîte.
+      const a = TAU * hash01(i, 829);
+      const rr = dish * Math.sqrt(hash01(i, 830));
+      L.dustPos[o] = Math.cos(a) * rr;
+      L.dustPos[o + 1] = Math.sin(a) * rr;
+      L.dustPos[o + 2] = (hash01(i, 831) - 0.5) * 10;
+      L.dustRole[i] = ROLE.HAZE;
+    } else {
+      hazeSphere(i, L.dustPos, o);
+      L.dustRole[i] = ROLE.HAZE;
+    }
+  }
+
+  // Noms encadrés au-dessus des plus grosses cellules.
+  const maxN = Math.max(1, ...groups.map((g) => g.notes.length));
+  for (const gi of order.slice(0, 16)) {
+    const g = groups[gi];
+    L.labels.push({
+      text: g.short,
+      sub: String(g.notes.length),
+      x: P[gi * 2],
+      y: P[gi * 2 + 1] + rad[gi] + 1.5,
+      z: cz(gi),
+      align: 'above',
+      weight: Math.sqrt(g.notes.length / maxN),
+      kind: 'box',
+      gi,
+    });
+  }
+
+  // Vue de biais : la boîte paraît moins haute que large, on cadre plus serré.
+  L.frame = { center: [0, 0, 0], width: dish * 2 + 6, height: dish * 1.55, depth: 20 };
+  L.camDir = [0, -0.55, 1]; // vue de biais, comme une boîte posée sous l'objectif
+  L.linkFactor = 0;
+  L.sizeMul = 0.95;
+  L.drift = 0.22;
+  L.question = t('q.micro');
+  const big = order.length ? groups[order[0]] : null;
+  L.answer = big ? t('a.micro', { name: big.short, n: fmt(big.notes.length) }) : '';
+  return L;
+}
+
 function layoutGrid(model, D, aspect) {
   const L = base('grid', model, D);
   const { groups } = model;
